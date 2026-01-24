@@ -68,6 +68,14 @@ Execute commands directly with full output formatting. Command history persists 
 4. Enter your connection details and connect
 5. Start browsing keys
 
+### Alternative Installation (Cursor, VSCodium, etc.)
+
+Download the `.vsix` file from [GitHub Releases](https://github.com/betterdb-inc/vscode/releases), then:
+
+- **Cursor**: `code --install-extension betterdb-for-valkey.vsix`
+- **VSCodium**: `codium --install-extension betterdb-for-valkey.vsix`
+- **Or**: Open the editor → Extensions → `...` menu → "Install from VSIX..."
+
 ---
 
 ## Connection Settings
