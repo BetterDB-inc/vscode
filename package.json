@@ -1,0 +1,233 @@
+{
+  "name": "betterdb-for-valkey",
+  "displayName": "BetterDB for Valkey",
+  "description": "Lightweight Valkey database management - connection manager, key browser, and integrated CLI",
+  "version": "1.0.0",
+  "publisher": "betterdb",
+  "license": "MIT",
+  "icon": "resources/icons/logo-in-white-128x128.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/betterdb-inc/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/betterdb-inc/vscode/issues"
+  },
+  "homepage": "https://betterdb.com",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "valkey",
+    "redis",
+    "database",
+    "nosql",
+    "key-value",
+    "cache",
+    "cli"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "betterdb",
+          "title": "BetterDB for Valkey",
+          "icon": "resources/icons/betterdb.svg"
+        }
+      ]
+    },
+    "views": {
+      "betterdb": [
+        {
+          "id": "betterdb-connections",
+          "name": "Connections"
+        },
+        {
+          "id": "betterdb-keys",
+          "name": "Keys"
+        },
+        {
+          "id": "betterdb-branding",
+          "name": "About",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "betterdb.addConnection",
+        "title": "Add Connection",
+        "icon": "$(add)",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.connect",
+        "title": "Connect",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.disconnect",
+        "title": "Disconnect",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.deleteConnection",
+        "title": "Delete Connection",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.editConnection",
+        "title": "Edit Connection",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.browseKeys",
+        "title": "Browse Keys",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.filterKeys",
+        "title": "Filter Keys",
+        "icon": "$(filter)",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.refreshKeys",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.openKey",
+        "title": "Open Key",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.deleteKey",
+        "title": "Delete Key",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.openCli",
+        "title": "Open CLI",
+        "icon": "$(terminal)",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.addKey",
+        "title": "Add Key",
+        "icon": "$(add)",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.openWebsite",
+        "title": "Open BetterDB Website",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.openRepo",
+        "title": "Contribute on GitHub",
+        "category": "BetterDB"
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "betterdb-connections",
+        "contents": "No connections yet.\n[Add Connection](command:betterdb.addConnection)"
+      },
+      {
+        "view": "betterdb-branding",
+        "contents": "Built by [BetterDB](https://betterdb.com) · [Contributions welcome](https://github.com/betterdb-inc/vscode)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "betterdb.addConnection",
+          "when": "view == betterdb-connections",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.filterKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.refreshKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.addKey",
+          "when": "view == betterdb-keys",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "betterdb.connect",
+          "when": "viewItem == connection-disconnected"
+        },
+        {
+          "command": "betterdb.disconnect",
+          "when": "viewItem == connection-connected"
+        },
+        {
+          "command": "betterdb.openCli",
+          "when": "viewItem == connection-connected"
+        },
+        {
+          "command": "betterdb.editConnection",
+          "when": "viewItem =~ /^connection/"
+        },
+        {
+          "command": "betterdb.deleteConnection",
+          "when": "viewItem =~ /^connection/"
+        },
+        {
+          "command": "betterdb.deleteKey",
+          "when": "viewItem =~ /^key-/"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "npm run build:extension && npm run build:webview",
+    "build:extension": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "build:webview": "esbuild ./src/webview/keyEditor/index.tsx --bundle --outfile=dist/webview/keyEditor.js --format=iife --platform=browser --loader:.module.css=local-css --target=es2020",
+    "watch": "npm run watch:extension & npm run watch:webview",
+    "watch:extension": "npm run build:extension -- --watch",
+    "watch:webview": "npm run build:webview -- --watch",
+    "lint": "eslint src --ext ts,tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "iovalkey": "^0.2.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.x",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "@vscode/vsce": "2.22.0",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  }
+}
