@@ -179,8 +179,8 @@ export function registerConnectionCommands(
       }
     }),
 
-    vscode.commands.registerCommand('betterdb.disconnect', async (connectionId: string) => {
-      await connectionManager.disconnect(connectionId);
+    vscode.commands.registerCommand('betterdb.disconnect', async (item: ConnectionTreeItem) => {
+      await connectionManager.disconnect(item.config.id);
       keyTreeProvider.clear();
       vscode.window.showInformationMessage('Disconnected');
     }),
