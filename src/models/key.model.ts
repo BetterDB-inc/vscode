@@ -12,7 +12,7 @@ export interface KeyInfo {
 export interface KeyValue {
   key: string;
   type: KeyType;
-  value: StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue;
+  value: StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue | JsonValue;
   ttl: number;
 }
 
@@ -51,4 +51,9 @@ export interface StreamValue {
   length: number;
   firstEntry?: string;
   lastEntry?: string;
+}
+
+export interface JsonValue {
+  type: 'json';
+  value: string;
 }

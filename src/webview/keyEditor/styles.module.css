@@ -315,3 +315,80 @@
 }
 
 .stringEditor {}
+
+.jsonEditorContainer {
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jsonEditorContainer:focus-within {
+  border-color: var(--vscode-focusBorder, #0e639c);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder, #0e639c);
+}
+
+.monacoWrapper {
+  min-height: 200px;
+}
+
+.jsonTypeEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jsonTypeEditor .label {
+  display: block;
+}
+
+.validationError {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--vscode-errorForeground, #f48771);
+  background-color: var(--vscode-inputValidation-errorBackground, rgba(244, 135, 113, 0.1));
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #f48771);
+  border-radius: 4px;
+}
+
+.viewToggle {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--vscode-panel-border, #3c3c3c);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.viewToggle .toggleBtn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background-color: transparent;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.viewToggle .toggleBtn:not(:last-child) {
+  border-right: 1px solid var(--vscode-panel-border, #3c3c3c);
+}
+
+.viewToggle .toggleBtn:hover {
+  background-color: var(--vscode-list-hoverBackground, #2a2a2a);
+  color: var(--vscode-foreground, #cccccc);
+}
+
+.viewToggle .toggleBtn.active {
+  background-color: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #ffffff);
+}
+
+.editorLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
+  font-size: 13px;
+}

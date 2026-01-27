@@ -197,6 +197,16 @@ export class KeyService {
         };
       }
 
+      case 'ReJSON-RL': {
+        const jsonValue = await this.getJson(key);
+        return {
+          key,
+          type: 'json',
+          ttl,
+          value: { type: 'json', value: jsonValue || '{}' },
+        };
+      }
+
       default:
         return {
           key,
@@ -341,5 +351,41 @@ export class KeyService {
       command,
       ...args
     );
+  }
+
+  async getJson(key: string, path: string = '.'): Promise<string | null> {
+    try {
+      const result = await this.executeCommand('JSON.GET', key, path);
+      if (result) {
+        // Format the JSON for display
+        return JSON.stringify(JSON.parse(result as string), null, 2);
+      }
+      return result as string;
+    } catch (error) {
+      console.warn(`Failed to get JSON for key "${key}":`, error);
+      return null;
+    }
+  }
+
+  async setJson(key: string, value: string, path: string = '.'): Promise<void> {
+    await this.executeCommand('JSON.SET', key, path, value);
+  }
+
+  async hasJsonModule(): Promise<boolean> {
+    try {
+      const modules = await this.executeCommand('MODULE', 'LIST') as Array<unknown[]>;
+      return modules.some((mod) => {
+        // Module info is an array like ['name', 'ReJSON', 'ver', 20000, ...]
+        const nameIndex = (mod as string[]).indexOf('name');
+        if (nameIndex !== -1 && nameIndex + 1 < mod.length) {
+          const name = (mod[nameIndex + 1] as string).toLowerCase();
+          return name === 'json' || name === 'rejson' || name === 'redisjson';
+        }
+        return false;
+      });
+    } catch {
+      // MODULE LIST may not be available or may fail - assume no JSON support
+      return false;
+    }
   }
 }

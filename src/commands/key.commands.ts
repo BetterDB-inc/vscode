@@ -78,16 +78,23 @@ export function registerKeyCommands(
         return;
       }
 
-      const type = await vscode.window.showQuickPick(
-        [
-          { label: 'String', value: 'string', description: 'Simple key-value pair' },
-          { label: 'Hash', value: 'hash', description: 'Field-value pairs' },
-          { label: 'List', value: 'list', description: 'Ordered collection of strings' },
-          { label: 'Set', value: 'set', description: 'Unordered unique strings' },
-          { label: 'Sorted Set', value: 'zset', description: 'Scored unique strings' },
-        ],
-        { placeHolder: 'Select key type' }
-      );
+      const keyService = new KeyService(client);
+
+      // Build type options, conditionally including JSON if module is available
+      const typeOptions: Array<{ label: string; value: string; description: string }> = [
+        { label: 'String', value: 'string', description: 'Simple key-value pair' },
+        { label: 'Hash', value: 'hash', description: 'Field-value pairs' },
+        { label: 'List', value: 'list', description: 'Ordered collection of strings' },
+        { label: 'Set', value: 'set', description: 'Unordered unique strings' },
+        { label: 'Sorted Set', value: 'zset', description: 'Scored unique strings' },
+      ];
+
+      const hasJson = await keyService.hasJsonModule();
+      if (hasJson) {
+        typeOptions.push({ label: 'JSON', value: 'json', description: 'JSON document' });
+      }
+
+      const type = await vscode.window.showQuickPick(typeOptions, { placeHolder: 'Select key type' });
 
       if (!type) return;
 
@@ -97,8 +104,6 @@ export function registerKeyCommands(
       });
 
       if (!key) return;
-
-      const keyService = new KeyService(client);
 
       const exists = await keyService.keyExists(key);
       if (exists) {
@@ -169,6 +174,24 @@ export function registerKeyCommands(
             });
             if (scoreStr === undefined) return;
             await keyService.zsetAdd(key, [{ score: parseFloat(scoreStr), member }]);
+            break;
+          }
+
+          case 'json': {
+            const value = await vscode.window.showInputBox({
+              prompt: 'Initial JSON value',
+              value: '{}',
+              validateInput: (v) => {
+                try {
+                  JSON.parse(v);
+                  return null;
+                } catch {
+                  return 'Invalid JSON';
+                }
+              },
+            });
+            if (value === undefined) return;
+            await keyService.setJson(key, value);
             break;
           }
         }

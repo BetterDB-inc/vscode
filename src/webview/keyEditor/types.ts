@@ -1,8 +1,8 @@
 export interface KeyData {
   key: string;
-  type: 'string' | 'hash' | 'list' | 'set' | 'zset' | 'stream';
+  type: 'string' | 'hash' | 'list' | 'set' | 'zset' | 'stream' | 'json';
   ttl: number;
-  value: StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue;
+  value: StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue | JsonValue;
 }
 
 export interface StringValue {
@@ -40,7 +40,12 @@ export interface StreamValue {
   length: number;
 }
 
-export type ValueType = StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue;
+export interface JsonValue {
+  type: 'json';
+  value: string;
+}
+
+export type ValueType = StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue | JsonValue;
 
 export interface VsCodeApi {
   postMessage(message: unknown): void;

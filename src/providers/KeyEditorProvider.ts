@@ -198,6 +198,10 @@ export class KeyEditorProvider implements vscode.Disposable {
         );
         break;
       }
+
+      case 'json':
+        await keyService.setJson(key, message.value as string);
+        break;
     }
   }
 
@@ -221,7 +225,7 @@ export class KeyEditorProvider implements vscode.Disposable {
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview', 'keyEditor.css')
     );
 
-    const initialData = JSON.stringify(this.toWebviewData(keyValue));
+    const initialData = this.escapeJsonForHtml(JSON.stringify(this.toWebviewData(keyValue)));
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -248,6 +252,19 @@ export class KeyEditorProvider implements vscode.Disposable {
       text += NONCE_CHARACTERS.charAt(Math.floor(Math.random() * NONCE_CHARACTERS.length));
     }
     return text;
+  }
+
+  /**
+   * Escapes a JSON string for safe embedding in HTML <script> tags.
+   * Prevents XSS by escaping characters that could break out of the script context.
+   */
+  private escapeJsonForHtml(json: string): string {
+    return json
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026')
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029');
   }
 
   private cleanupPanel(panelKey: string): void {
