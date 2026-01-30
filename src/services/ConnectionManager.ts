@@ -86,6 +86,7 @@ export class ConnectionManager {
 
     try {
       await client.connect();
+      await client.client('SETNAME', 'BetterDB-for-Valkey');
       const info = await this.getServerInfo(client);
 
       this.connections.set(configId, client);

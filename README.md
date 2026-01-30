@@ -42,6 +42,16 @@ View and edit Valkey data types with type-specific editors:
 
 ![Key Editor](resources/screenshots/editor.png)
 
+### Server Stats
+
+Monitor your Valkey instance health at a glance. View real-time metrics including version, memory usage, connected clients, operations per second, hit rate, and more.
+
+- Auto-refreshes every 5 seconds
+- Pauses polling when collapsed to save resources
+- Shows version, role, uptime, memory, ops/sec, hit rate, total keys, and evicted keys
+
+![Server Stats](resources/screenshots/server-stats.png)
+
 ### Integrated CLI
 
 Execute commands directly with full output formatting. Command history persists across sessions.
@@ -100,14 +110,17 @@ Access commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 | Command | Description |
 |---------|-------------|
 | `BetterDB: Add Connection` | Add a new database connection |
-| `BetterDB: Connect` | Connect to a saved connection |
-| `BetterDB: Disconnect` | Disconnect from the current connection |
-| `BetterDB: Browse Keys` | Open the key browser |
-| `BetterDB: Filter Keys` | Filter keys by pattern |
-| `BetterDB: Refresh Keys` | Refresh the key list |
 | `BetterDB: Add Key` | Create a new key |
-| `BetterDB: Delete Key` | Delete the selected key |
+| `BetterDB: Filter Keys` | Filter keys by pattern |
 | `BetterDB: Open CLI` | Open the integrated CLI |
+| `BetterDB: Refresh` | Refresh the key list |
+| `BetterDB: Refresh Stats` | Refresh server stats |
+| `BetterDB: Open BetterDB Website` | Visit betterdb.com |
+| `BetterDB: Contribute on GitHub` | Open the GitHub repository |
+
+![Command Palette](resources/screenshots/command-pallette.png)
+
+Additional commands are available via context menus in the sidebar (Connect, Disconnect, Edit Connection, Delete Connection, Delete Key).
 
 ---
 

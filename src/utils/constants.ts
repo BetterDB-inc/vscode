@@ -48,4 +48,5 @@ export const COMMANDS = {
   DELETE_KEY: 'betterdb.deleteKey',
   OPEN_CLI: 'betterdb.openCli',
   ADD_KEY: 'betterdb.addKey',
+  REFRESH_STATS: 'betterdb.refreshStats',
 } as const;

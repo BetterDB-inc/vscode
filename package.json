@@ -2,7 +2,7 @@
   "name": "betterdb-for-valkey",
   "displayName": "BetterDB for Valkey",
   "description": "Lightweight Valkey database management - connection manager, key browser, and integrated CLI",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "betterdb",
   "license": "MIT",
   "icon": "resources/icons/logo-in-white-128x128.png",
@@ -50,6 +50,11 @@
         {
           "id": "betterdb-keys",
           "name": "Keys"
+        },
+        {
+          "id": "betterdb.statsView",
+          "name": "Server Stats",
+          "type": "webview"
         },
         {
           "id": "betterdb-branding",
@@ -133,6 +138,12 @@
         "command": "betterdb.openRepo",
         "title": "Contribute on GitHub",
         "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.refreshStats",
+        "title": "Refresh Stats",
+        "icon": "$(refresh)",
+        "category": "BetterDB"
       }
     ],
     "viewsWelcome": [
@@ -146,6 +157,36 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "betterdb.connect",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.disconnect",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.deleteConnection",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.editConnection",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.browseKeys",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.openKey",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.deleteKey",
+          "when": "false"
+        }
+      ],
       "view/title": [
         {
           "command": "betterdb.addConnection",
@@ -165,6 +206,11 @@
         {
           "command": "betterdb.addKey",
           "when": "view == betterdb-keys",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.refreshStats",
+          "when": "view == betterdb.statsView",
           "group": "navigation"
         }
       ],
@@ -198,9 +244,10 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run build",
-    "build": "npm run build:extension && npm run build:webview",
+    "build": "npm run build:extension && npm run build:webview && npm run build:stats",
     "build:extension": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
     "build:webview": "esbuild ./src/webview/keyEditor/index.tsx --bundle --outfile=dist/webview/keyEditor.js --format=iife --platform=browser --loader:.module.css=local-css --loader:.ttf=file --target=es2020",
+    "build:stats": "cp ./src/webview/statsView/stats.css ./dist/webview/stats.css",
     "watch": "npm run watch:extension & npm run watch:webview",
     "watch:extension": "npm run build:extension -- --watch",
     "watch:webview": "npm run build:webview -- --watch",

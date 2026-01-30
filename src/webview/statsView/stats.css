@@ -1,0 +1,134 @@
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  padding: 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.message {
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  padding: 20px;
+}
+
+.message-subtitle {
+  font-size: 12px;
+}
+
+.error {
+  text-align: center;
+  color: var(--vscode-errorForeground);
+  padding: 20px;
+}
+
+.error-message {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 8px;
+  word-break: break-word;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.role-badge {
+  text-transform: uppercase;
+}
+
+.uptime {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.card {
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.card-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--vscode-descriptionForeground);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.card-value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin-top: 4px;
+}
+
+.footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.refresh-note {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.promo {
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-textLink-foreground);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.promo-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.promo-text {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.promo a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.promo a:hover {
+  text-decoration: underline;
+}
