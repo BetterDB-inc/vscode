@@ -3,14 +3,16 @@ import Valkey from 'iovalkey';
 import { ConnectionConfig, ConnectionState, ServerInfo } from '../models/connection.model';
 import { STORAGE_KEYS } from '../utils/constants';
 import { parseRedisInfo } from '../utils/helpers';
+import { SshTunnelManager } from './SshTunnelManager';
 
 export class ConnectionManager {
   private connections: Map<string, Valkey> = new Map();
   private states: Map<string, ConnectionState> = new Map();
   private _onDidChangeConnections = new vscode.EventEmitter<void>();
   readonly onDidChangeConnections = this._onDidChangeConnections.event;
+  private sshTunnelManager = new SshTunnelManager();
 
-  constructor(private context: vscode.ExtensionContext) {}
+  constructor(private context: vscode.ExtensionContext) { }
 
   async loadConnections(): Promise<ConnectionConfig[]> {
     return this.context.globalState.get<ConnectionConfig[]>(STORAGE_KEYS.CONNECTIONS, []);
@@ -45,6 +47,8 @@ export class ConnectionManager {
     await this.context.globalState.update(STORAGE_KEYS.CONNECTIONS, filtered);
 
     await this.context.secrets.delete(`password:${configId}`);
+    await this.context.secrets.delete(`ssh-password:${configId}`);
+    await this.context.secrets.delete(`ssh-passphrase:${configId}`);
 
     this.states.delete(configId);
     this._onDidChangeConnections.fire();
@@ -61,30 +65,58 @@ export class ConnectionManager {
 
     this.updateState(configId, { config, status: 'connecting' });
 
-    const client = new Valkey({
-      host: config.host,
-      port: config.port,
-      username: config.username || undefined,
-      password: password || undefined,
-      db: config.db || 0,
-      tls: config.tls ? {} : undefined,
-      connectTimeout: config.connectionTimeout || 10000,
-      lazyConnect: true,
-      retryStrategy: () => null,
-    });
-
-    client.on('error', (err) => {
-      console.error('Valkey client error:', err);
-    });
-
-    client.on('close', () => {
-      const state = this.states.get(configId);
-      if (state && state.status === 'connected') {
-        this.updateState(configId, { ...state, status: 'disconnected' });
-      }
-    });
-
     try {
+      let connectHost = config.host;
+      let connectPort = config.port;
+
+      if (config.ssh?.enabled) {
+        const sshPassword = await this.context.secrets.get(`ssh-password:${config.id}`);
+        const sshPassphrase = await this.context.secrets.get(`ssh-passphrase:${config.id}`);
+
+        const localPort = await this.sshTunnelManager.createTunnel(configId, {
+          sshHost: config.ssh.host,
+          sshPort: config.ssh.port,
+          sshUsername: config.ssh.username,
+          authMethod: config.ssh.authMethod,
+          password: sshPassword || undefined,
+          privateKeyPath: config.ssh.privateKeyPath,
+          passphrase: sshPassphrase || undefined,
+          remoteHost: config.host,
+          remotePort: config.port,
+        });
+
+        connectHost = '127.0.0.1';
+        connectPort = localPort;
+      }
+
+      let tlsOptions: object | undefined;
+      if (config.tls) {
+        tlsOptions = config.ssh?.enabled ? { servername: config.host } : {};
+      }
+
+      const client = new Valkey({
+        host: connectHost,
+        port: connectPort,
+        username: config.username || undefined,
+        password: password || undefined,
+        db: config.db || 0,
+        tls: tlsOptions,
+        connectTimeout: config.connectionTimeout || 10000,
+        lazyConnect: true,
+        retryStrategy: () => null,
+      });
+
+      client.on('error', (err) => {
+        console.error('Valkey client error:', err);
+      });
+
+      client.on('close', () => {
+        const state = this.states.get(configId);
+        if (state && state.status === 'connected') {
+          this.updateState(configId, { ...state, status: 'disconnected' });
+        }
+      });
+
       await client.connect();
       await client.client('SETNAME', 'BetterDB-for-Valkey');
       const info = await this.getServerInfo(client);
@@ -96,6 +128,9 @@ export class ConnectionManager {
         serverInfo: info,
       });
     } catch (err) {
+      if (this.sshTunnelManager.hasTunnel(configId)) {
+        await this.sshTunnelManager.closeTunnel(configId);
+      }
       this.updateState(configId, {
         config,
         status: 'error',
@@ -115,6 +150,11 @@ export class ConnectionManager {
       }
       this.connections.delete(configId);
     }
+
+    if (this.sshTunnelManager.hasTunnel(configId)) {
+      await this.sshTunnelManager.closeTunnel(configId);
+    }
+
     const state = this.states.get(configId);
     if (state) {
       this.updateState(configId, { ...state, status: 'disconnected', error: undefined });
@@ -153,8 +193,9 @@ export class ConnectionManager {
 
   dispose(): void {
     for (const [id] of this.connections) {
-      this.disconnect(id).catch(() => {});
+      this.disconnect(id).catch(() => { });
     }
+    this.sshTunnelManager.closeAll().catch(() => { });
     this._onDidChangeConnections.dispose();
   }
 }
