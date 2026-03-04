@@ -7,7 +7,7 @@
 [![Open VSX Downloads](https://img.shields.io/open-vsx/dt/betterdb/betterdb-for-valkey)](https://open-vsx.org/extension/betterdb/betterdb-for-valkey)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Browse keys, edit values, and run commands without leaving your editor.
+Browse keys, edit values, and run commands without leaving your editor. Connect to remote databases via built-in SSH tunnel.
 
 ![BetterDB Overview](resources/screenshots/editor.png)
 
@@ -100,15 +100,27 @@ Download the `.vsix` file from [GitHub Releases](https://github.com/betterdb-inc
 | Password | Authentication password (optional) | — |
 | Database | Database index | `0` |
 | TLS | Enable TLS/SSL encryption | `false` |
-| SSH Tunnel | Connect through an SSH tunnel | `false` |
-| SSH Host | SSH server hostname | — |
+
+### SSH Tunnel
+
+Connect to remote Valkey/Redis instances through an SSH tunnel — no VS Code Remote-SSH or manual port forwarding required.
+
+- Supports password and private key authentication
+- Works with managed services like AWS ElastiCache and MemoryDB that are only accessible from within a VPC
+- TLS connections work through the tunnel (SNI is forwarded automatically)
+- Multiple simultaneous SSH tunnels supported
+- Clear error messages when SSH auth fails, the tunnel times out, or the remote database is unreachable
+
+When adding or editing a connection, choose **Yes** at the "Connect via SSH tunnel?" prompt and enter your SSH server details. The extension opens an SSH connection, creates a local TCP tunnel, and routes all Valkey traffic through it.
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| SSH Enabled | Enable SSH tunnel for this connection | `false` |
+| SSH Host | SSH server hostname or IP | — |
 | SSH Port | SSH server port | `22` |
 | SSH Username | SSH login username | — |
-| SSH Auth | Password or Private Key | — |
-
-### Connecting via SSH
-
-BetterDB can tunnel Valkey connections through SSH, letting you reach instances on private networks without VS Code Remote-SSH. When you add or edit a connection, choose **Yes** at the "Connect via SSH tunnel?" prompt and fill in the SSH server details. The extension opens an SSH connection, creates a local TCP tunnel, and routes all Valkey traffic through it. This works whether VS Code is running locally or remotely — the tunnel is managed entirely by the extension.
+| SSH Auth Method | Password or Private Key | — |
+| SSH Private Key | Path to private key file | — |
 
 ---
 
@@ -138,7 +150,7 @@ Additional commands are available via context menus in the sidebar (Connect, Dis
 - VS Code 1.85.0 or higher
 - Valkey 7.2+ or Redis 6.0+
 
-Redis compatibility is maintained—BetterDB works with both Valkey and Redis servers.
+Redis compatibility is maintained—BetterDB works with both Valkey and Redis servers. SSH tunneling is built in (ssh2 is bundled) — no additional software needed.
 
 ---
 
