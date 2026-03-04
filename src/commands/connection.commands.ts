@@ -140,15 +140,19 @@ async function collectSshForm(defaults?: SshConfig): Promise<SshFormData | undef
     privateKeyPath = keyUri?.[0]?.fsPath;
     if (!privateKeyPath) return undefined;
 
-    sshPassphrase = await vscode.window.showInputBox({
+    const passphraseInput = await vscode.window.showInputBox({
       prompt: 'Key passphrase (leave empty if none)',
       password: true,
     });
+    if (passphraseInput === undefined) return undefined;
+    sshPassphrase = passphraseInput || undefined;
   } else {
-    sshPassword = await vscode.window.showInputBox({
+    const passwordInput = await vscode.window.showInputBox({
       prompt: 'SSH Password',
       password: true,
     });
+    if (passwordInput === undefined) return undefined;
+    sshPassword = passwordInput || undefined;
   }
 
   return {
@@ -323,15 +327,18 @@ export function registerConnectionCommands(
         });
       }
 
-      await context.secrets.delete(`ssh-password:${config.id}`);
-      await context.secrets.delete(`ssh-passphrase:${config.id}`);
       if (form.sshData) {
+        await context.secrets.delete(`ssh-password:${config.id}`);
+        await context.secrets.delete(`ssh-passphrase:${config.id}`);
         if (form.sshData.sshPassword) {
           await context.secrets.store(`ssh-password:${config.id}`, form.sshData.sshPassword);
         }
         if (form.sshData.sshPassphrase) {
           await context.secrets.store(`ssh-passphrase:${config.id}`, form.sshData.sshPassphrase);
         }
+      } else if (config.ssh?.enabled) {
+        await context.secrets.delete(`ssh-password:${config.id}`);
+        await context.secrets.delete(`ssh-passphrase:${config.id}`);
       }
 
       const updatedConfig: ConnectionConfig = {
