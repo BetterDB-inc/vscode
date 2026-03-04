@@ -41,18 +41,22 @@ export class ConnectionTreeItem extends vscode.TreeItem {
   ) {
     super(config.name, vscode.TreeItemCollapsibleState.None);
 
-    this.description = `${config.host}:${config.port}${config.db ? `/${config.db}` : ''}`;
+    const sshLabel = config.ssh?.enabled ? ' (SSH)' : '';
+    this.description = `${config.host}:${config.port}${config.db ? `/${config.db}` : ''}${sshLabel}`;
 
     const statusText = isConnected ? 'Connected' : 'Disconnected';
     const serverDetails = serverInfo
       ? `\nVersion: ${serverInfo.version}\nMemory: ${serverInfo.usedMemory}`
+      : '';
+    const sshDetails = config.ssh?.enabled
+      ? `\n\nSSH: \`${config.ssh.username}@${config.ssh.host}:${config.ssh.port}\``
       : '';
 
     this.tooltip = new vscode.MarkdownString(
       `**${config.name}**\n\n` +
       `Host: \`${config.host}:${config.port}\`\n\n` +
       `Database: ${config.db || 0}\n\n` +
-      `Status: ${statusText}${serverDetails}`
+      `Status: ${statusText}${serverDetails}${sshDetails}`
     );
 
     this.iconPath = new vscode.ThemeIcon(

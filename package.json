@@ -245,7 +245,7 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "build": "npm run build:extension && npm run build:webview && npm run build:stats",
-    "build:extension": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "build:extension": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --loader:.node=file --format=cjs --platform=node",
     "build:webview": "esbuild ./src/webview/keyEditor/index.tsx --bundle --outfile=dist/webview/keyEditor.js --format=iife --platform=browser --loader:.module.css=local-css --loader:.ttf=file --target=es2020",
     "build:stats": "cp ./src/webview/statsView/stats.css ./dist/webview/stats.css",
     "watch": "npm run watch:extension & npm run watch:webview",
@@ -261,12 +261,14 @@
     "iovalkey": "^0.2.2",
     "monaco-editor": "^0.52.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "ssh2": "^1.17.0"
   },
   "devDependencies": {
     "@types/node": "^20.x",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/ssh2": "^1.15.5",
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",

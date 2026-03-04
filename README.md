@@ -100,6 +100,15 @@ Download the `.vsix` file from [GitHub Releases](https://github.com/betterdb-inc
 | Password | Authentication password (optional) | — |
 | Database | Database index | `0` |
 | TLS | Enable TLS/SSL encryption | `false` |
+| SSH Tunnel | Connect through an SSH tunnel | `false` |
+| SSH Host | SSH server hostname | — |
+| SSH Port | SSH server port | `22` |
+| SSH Username | SSH login username | — |
+| SSH Auth | Password or Private Key | — |
+
+### Connecting via SSH
+
+BetterDB can tunnel Valkey connections through SSH, letting you reach instances on private networks without VS Code Remote-SSH. When you add or edit a connection, choose **Yes** at the "Connect via SSH tunnel?" prompt and fill in the SSH server details. The extension opens an SSH connection, creates a local TCP tunnel, and routes all Valkey traffic through it. This works whether VS Code is running locally or remotely — the tunnel is managed entirely by the extension.
 
 ---
 
