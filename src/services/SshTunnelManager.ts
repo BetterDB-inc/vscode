@@ -29,7 +29,6 @@ export class SshTunnelManager {
   async createTunnel(connectionId: string, config: TunnelConfig): Promise<number> {
     log.appendLine(`[${connectionId}] Creating tunnel: SSH ${config.sshUsername}@${config.sshHost}:${config.sshPort} → ${config.remoteHost}:${config.remotePort}`);
     log.appendLine(`[${connectionId}] Auth method: ${config.authMethod}${config.privateKeyPath ? ` (key: ${config.privateKeyPath})` : ''}`);
-    log.show(true);
 
     if (this.tunnels.has(connectionId)) {
       log.appendLine(`[${connectionId}] Closing existing tunnel`);
@@ -181,6 +180,7 @@ export class SshTunnelManager {
       return localPort;
     } catch (err) {
       log.appendLine(`[${connectionId}] Tunnel creation failed, cleaning up SSH client`);
+      log.show(true);
       sshClient.end();
       throw err;
     }
