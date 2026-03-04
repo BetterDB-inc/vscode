@@ -90,94 +90,100 @@ export class SshTunnelManager {
       });
     });
 
-    log.appendLine(`[${connectionId}] Testing forwardOut to ${config.remoteHost}:${config.remotePort}...`);
-    await new Promise<void>((resolve, reject) => {
-      sshClient.forwardOut('127.0.0.1', 0, config.remoteHost, config.remotePort, (err, stream) => {
-        if (err) {
-          log.appendLine(`[${connectionId}] forwardOut test FAILED: ${err.message}`);
-          reject(
-            new Error(
-              `Connected to SSH server, but Valkey at ${config.remoteHost}:${config.remotePort} refused the connection`
-            )
-          );
-        } else {
-          log.appendLine(`[${connectionId}] forwardOut test OK — remote port is reachable`);
-          stream.end();
-          resolve();
-        }
-      });
-    });
-
-    const server = net.createServer((socket) => {
-      log.appendLine(`[${connectionId}] Incoming connection on local tunnel, calling forwardOut...`);
-      sshClient.forwardOut(
-        '127.0.0.1',
-        0,
-        config.remoteHost,
-        config.remotePort,
-        (err, stream) => {
+    try {
+      log.appendLine(`[${connectionId}] Testing forwardOut to ${config.remoteHost}:${config.remotePort}...`);
+      await new Promise<void>((resolve, reject) => {
+        sshClient.forwardOut('127.0.0.1', 0, config.remoteHost, config.remotePort, (err, stream) => {
           if (err) {
-            log.appendLine(`[${connectionId}] forwardOut FAILED: ${err.message}`);
-            socket.destroy(
+            log.appendLine(`[${connectionId}] forwardOut test FAILED: ${err.message}`);
+            reject(
               new Error(
-                `SSH tunnel forwarding failed to ${config.remoteHost}:${config.remotePort}: ${err.message}`
+                `Connected to SSH server, but Valkey at ${config.remoteHost}:${config.remotePort} refused the connection`
               )
             );
-            return;
+          } else {
+            log.appendLine(`[${connectionId}] forwardOut test OK — remote port is reachable`);
+            stream.end();
+            resolve();
           }
-          log.appendLine(`[${connectionId}] forwardOut OK, piping data`);
-          socket.pipe(stream);
-          stream.pipe(socket);
-          socket.on('error', (e) => {
-            log.appendLine(`[${connectionId}] Socket error: ${e.message}`);
-            stream.destroy();
-          });
-          stream.on('error', (e) => {
-            log.appendLine(`[${connectionId}] Stream error: ${e.message}`);
-            socket.destroy();
-          });
-          stream.on('close', () => {
-            log.appendLine(`[${connectionId}] Stream closed`);
-            socket.destroy();
-          });
-          socket.on('close', () => {
-            log.appendLine(`[${connectionId}] Socket closed`);
-          });
-        }
-      );
-    });
+        });
+      });
 
-    const localPort = await new Promise<number>((resolve, reject) => {
-      server.on('error', reject);
-      server.listen(0, '127.0.0.1', () => {
-        const addr = server.address();
-        if (addr && typeof addr === 'object') {
-          resolve(addr.port);
-        } else {
-          reject(new Error('Failed to bind local tunnel port'));
+      const server = net.createServer((socket) => {
+        log.appendLine(`[${connectionId}] Incoming connection on local tunnel, calling forwardOut...`);
+        sshClient.forwardOut(
+          '127.0.0.1',
+          0,
+          config.remoteHost,
+          config.remotePort,
+          (err, stream) => {
+            if (err) {
+              log.appendLine(`[${connectionId}] forwardOut FAILED: ${err.message}`);
+              socket.destroy(
+                new Error(
+                  `SSH tunnel forwarding failed to ${config.remoteHost}:${config.remotePort}: ${err.message}`
+                )
+              );
+              return;
+            }
+            log.appendLine(`[${connectionId}] forwardOut OK, piping data`);
+            socket.pipe(stream);
+            stream.pipe(socket);
+            socket.on('error', (e) => {
+              log.appendLine(`[${connectionId}] Socket error: ${e.message}`);
+              stream.destroy();
+            });
+            stream.on('error', (e) => {
+              log.appendLine(`[${connectionId}] Stream error: ${e.message}`);
+              socket.destroy();
+            });
+            stream.on('close', () => {
+              log.appendLine(`[${connectionId}] Stream closed`);
+              socket.destroy();
+            });
+            socket.on('close', () => {
+              log.appendLine(`[${connectionId}] Socket closed`);
+            });
+          }
+        );
+      });
+
+      const localPort = await new Promise<number>((resolve, reject) => {
+        server.on('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+          const addr = server.address();
+          if (addr && typeof addr === 'object') {
+            resolve(addr.port);
+          } else {
+            reject(new Error('Failed to bind local tunnel port'));
+          }
+        });
+      });
+
+      log.appendLine(`[${connectionId}] Local tunnel listening on 127.0.0.1:${localPort}`);
+
+      sshClient.on('error', (err) => {
+        log.appendLine(`[${connectionId}] SSH client error (post-connect): ${err.message}`);
+        this.closeTunnel(connectionId).catch(() => {});
+      });
+
+      sshClient.on('close', () => {
+        log.appendLine(`[${connectionId}] SSH client connection closed`);
+        const tunnel = this.tunnels.get(connectionId);
+        if (tunnel) {
+          tunnel.server.close();
+          this.tunnels.delete(connectionId);
         }
       });
-    });
 
-    log.appendLine(`[${connectionId}] Local tunnel listening on 127.0.0.1:${localPort}`);
-
-    sshClient.on('error', (err) => {
-      log.appendLine(`[${connectionId}] SSH client error (post-connect): ${err.message}`);
-      this.closeTunnel(connectionId).catch(() => {});
-    });
-
-    sshClient.on('close', () => {
-      log.appendLine(`[${connectionId}] SSH client connection closed`);
-      const tunnel = this.tunnels.get(connectionId);
-      if (tunnel) {
-        tunnel.server.close();
-        this.tunnels.delete(connectionId);
-      }
-    });
-
-    this.tunnels.set(connectionId, { client: sshClient, server, localPort });
-    log.appendLine(`[${connectionId}] Tunnel ready — Valkey client should connect to 127.0.0.1:${localPort}`);
-    return localPort;
+      this.tunnels.set(connectionId, { client: sshClient, server, localPort });
+      log.appendLine(`[${connectionId}] Tunnel ready — Valkey client should connect to 127.0.0.1:${localPort}`);
+      return localPort;
+    } catch (err) {
+      log.appendLine(`[${connectionId}] Tunnel creation failed, cleaning up SSH client`);
+      sshClient.end();
+      throw err;
+    }
   }
 
   async closeTunnel(connectionId: string): Promise<void> {

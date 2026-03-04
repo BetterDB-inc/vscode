@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SshTunnelManager } from '../SshTunnelManager';
 
+vi.mock('vscode', () => ({
+  window: {
+    createOutputChannel: () => ({
+      appendLine: vi.fn(),
+      show: vi.fn(),
+    }),
+  },
+}));
+
 vi.mock('ssh2', async () => {
   const { EventEmitter } = await import('events');
 
@@ -17,7 +26,8 @@ vi.mock('ssh2', async () => {
         cb: (err: Error | undefined, stream: InstanceType<typeof EventEmitter>) => void
       ) => {
         const stream = new EventEmitter();
-        (stream as EventEmitter & { pipe: ReturnType<typeof vi.fn> }).pipe = vi.fn().mockReturnValue(stream);
+        (stream as EventEmitter & { pipe: ReturnType<typeof vi.fn>; end: ReturnType<typeof vi.fn> }).pipe = vi.fn().mockReturnValue(stream);
+        (stream as EventEmitter & { end: ReturnType<typeof vi.fn> }).end = vi.fn();
         cb(undefined, stream);
       }
     );

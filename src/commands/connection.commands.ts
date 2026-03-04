@@ -323,6 +323,8 @@ export function registerConnectionCommands(
         });
       }
 
+      await context.secrets.delete(`ssh-password:${config.id}`);
+      await context.secrets.delete(`ssh-passphrase:${config.id}`);
       if (form.sshData) {
         if (form.sshData.sshPassword) {
           await context.secrets.store(`ssh-password:${config.id}`, form.sshData.sshPassword);
@@ -330,9 +332,6 @@ export function registerConnectionCommands(
         if (form.sshData.sshPassphrase) {
           await context.secrets.store(`ssh-passphrase:${config.id}`, form.sshData.sshPassphrase);
         }
-      } else {
-        await context.secrets.delete(`ssh-password:${config.id}`);
-        await context.secrets.delete(`ssh-passphrase:${config.id}`);
       }
 
       const updatedConfig: ConnectionConfig = {
