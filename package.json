@@ -2,7 +2,7 @@
   "name": "betterdb-for-valkey",
   "displayName": "BetterDB for Valkey",
   "description": "Lightweight Valkey and Redis database management - SSH tunnel support for remote servers, ElastiCache, and MemoryDB. Connection manager, key browser, and integrated CLI",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "publisher": "betterdb",
   "license": "MIT",
   "icon": "resources/icons/logo-in-white-128x128.png",
