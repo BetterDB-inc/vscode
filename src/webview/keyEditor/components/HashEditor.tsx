@@ -1,4 +1,5 @@
 import React from 'react';
+import { FtIndexInfo } from '../types';
 import styles from '../styles.module.css';
 
 interface HashField {
@@ -10,9 +11,10 @@ interface HashEditorProps {
   fields: HashField[];
   total: number;
   onChange: (fields: HashField[]) => void;
+  ftSchema?: FtIndexInfo | null;
 }
 
-export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange }) => {
+export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange, ftSchema }) => {
   const handleChange = (index: number, key: 'field' | 'value', value: string) => {
     const updated = [...fields];
     updated[index] = { ...updated[index], [key]: value };
@@ -44,15 +46,31 @@ export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange 
       {fields.length === 0 ? (
         <div className={styles.emptyState}>No fields in this hash</div>
       ) : (
-        fields.map((item, index) => (
+        fields.map((item, index) => {
+          const ftField = ftSchema?.fields.find((f) => f.name === item.field);
+          let badgeText: string | null = null;
+          if (ftField) {
+            if (ftField.type === 'VECTOR') {
+              const dim = ftField.vectorDimension;
+              const metric = ftField.vectorDistanceMetric;
+              badgeText = `[VECTOR${dim ? ` ${dim}d` : ''}${metric ? ` ${metric}` : ''}]`;
+            } else {
+              badgeText = `[${ftField.type}]`;
+            }
+          }
+          return (
           <div key={index} className={`${styles.tableRow} ${styles.hashGrid}`}>
-            <input
-              type="text"
-              className={styles.input}
-              value={item.field}
-              onChange={(e) => handleChange(index, 'field', e.target.value)}
-              placeholder="Field name"
-            />
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="text"
+                className={styles.input}
+                value={item.field}
+                onChange={(e) => handleChange(index, 'field', e.target.value)}
+                placeholder="Field name"
+                style={{ flex: 1 }}
+              />
+              {badgeText && <span className={styles.ftBadge}>{badgeText}</span>}
+            </div>
             <input
               type="text"
               className={styles.input}
@@ -69,7 +87,8 @@ export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange 
               ×
             </button>
           </div>
-        ))
+          );
+        })
       )}
 
       <div className={styles.addRow}>

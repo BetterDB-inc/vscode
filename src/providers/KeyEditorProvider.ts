@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { KeyService } from '../services/KeyService';
 import { KeyValue } from '../models/key.model';
+import { FtIndexInfo } from '../shared/types';
 import { showError } from '../utils/errors';
 
 interface WebviewMessage {
@@ -41,6 +42,13 @@ export class KeyEditorProvider implements vscode.Disposable {
       return;
     }
 
+    let ftSchema: FtIndexInfo | null = null;
+    try {
+      ftSchema = await keyService.getIndexForKey(key);
+    } catch {
+      // Search module unavailable — proceed without schema
+    }
+
     const panel = vscode.window.createWebviewPanel(
       'betterdb.keyEditor',
       `Key: ${key}`,
@@ -71,7 +79,7 @@ export class KeyEditorProvider implements vscode.Disposable {
 
     this.disposables.set(panelKey, panelDisposables);
 
-    panel.webview.html = this.getWebviewContent(panel.webview, keyValue);
+    panel.webview.html = this.getWebviewContent(panel.webview, keyValue, ftSchema);
   }
 
   private async handleMessage(
@@ -123,7 +131,9 @@ export class KeyEditorProvider implements vscode.Disposable {
         case 'refresh': {
           const newValue = await keyService.getValue(key);
           if (newValue) {
-            panel.webview.postMessage({ command: 'update', data: this.toWebviewData(newValue) });
+            let refreshedSchema: FtIndexInfo | null = null;
+            try { refreshedSchema = await keyService.getIndexForKey(key); } catch { /* ignore */ }
+            panel.webview.postMessage({ command: 'update', data: this.toWebviewData(newValue, refreshedSchema) });
           } else {
             vscode.window.showWarningMessage('Key no longer exists');
             panel.dispose();
@@ -205,16 +215,17 @@ export class KeyEditorProvider implements vscode.Disposable {
     }
   }
 
-  private toWebviewData(keyValue: KeyValue) {
+  private toWebviewData(keyValue: KeyValue, ftSchema?: FtIndexInfo | null) {
     return {
       key: keyValue.key,
       type: keyValue.value.type,
       ttl: keyValue.ttl,
-      value: keyValue.value
+      value: keyValue.value,
+      ftSchema: ftSchema ?? null,
     };
   }
 
-  private getWebviewContent(webview: vscode.Webview, keyValue: KeyValue): string {
+  private getWebviewContent(webview: vscode.Webview, keyValue: KeyValue, ftSchema?: FtIndexInfo | null): string {
     const nonce = this.getNonce();
 
     const scriptUri = webview.asWebviewUri(
@@ -225,7 +236,7 @@ export class KeyEditorProvider implements vscode.Disposable {
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview', 'keyEditor.css')
     );
 
-    const initialData = this.escapeJsonForHtml(JSON.stringify(this.toWebviewData(keyValue)));
+    const initialData = this.escapeJsonForHtml(JSON.stringify(this.toWebviewData(keyValue, ftSchema)));
 
     return `<!DOCTYPE html>
 <html lang="en">

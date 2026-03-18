@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from './services/ConnectionManager';
 import { ConnectionTreeProvider } from './providers/ConnectionTreeProvider';
 import { KeyTreeProvider } from './providers/KeyTreeProvider';
+import { SearchTreeProvider } from './providers/SearchTreeProvider';
 import { KeyEditorProvider } from './providers/KeyEditorProvider';
 import { BrandingTreeProvider } from './providers/BrandingTreeProvider';
 import { StatsViewProvider } from './providers/StatsViewProvider';
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const connectionTreeProvider = new ConnectionTreeProvider(connectionManager);
   const keyTreeProvider = new KeyTreeProvider(connectionManager);
+  const searchTreeProvider = new SearchTreeProvider(connectionManager);
   const keyEditorProvider = new KeyEditorProvider(context, () => {
     keyTreeProvider.refresh();
   });
@@ -34,10 +36,14 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('betterdb-connections', connectionTreeProvider),
     vscode.window.registerTreeDataProvider('betterdb-keys', keyTreeProvider),
+    vscode.window.registerTreeDataProvider('betterdb-search', searchTreeProvider),
     vscode.window.registerTreeDataProvider('betterdb-branding', new BrandingTreeProvider()),
     vscode.window.registerWebviewViewProvider(StatsViewProvider.viewType, statsViewProvider),
     vscode.commands.registerCommand(COMMANDS.REFRESH_STATS, () => {
       statsViewProvider.refresh();
+    }),
+    vscode.commands.registerCommand(COMMANDS.REFRESH_SEARCH, () => {
+      searchTreeProvider.refresh();
     }),
     vscode.commands.registerCommand('betterdb.openWebsite', () => {
       vscode.env.openExternal(vscode.Uri.parse('https://betterdb.com'));
@@ -50,8 +56,8 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
-  registerConnectionCommands(context, connectionManager, keyTreeProvider);
-  registerKeyCommands(context, connectionManager, keyTreeProvider, keyEditorProvider);
+  registerConnectionCommands(context, connectionManager, keyTreeProvider, searchTreeProvider);
+  registerKeyCommands(context, connectionManager, keyTreeProvider, keyEditorProvider, searchTreeProvider);
   registerCliCommands(context, connectionManager);
 
   context.subscriptions.push(
