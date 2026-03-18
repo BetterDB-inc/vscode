@@ -82,14 +82,17 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
 
   async getChildren(element?: SearchTreeItem): Promise<SearchTreeItem[]> {
     if (!this.keyService || !this.activeConnectionId) {
+      vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
       return [];
     }
 
     if (!element) {
       try {
         const hasSearch = await this.keyService.hasSearchModule();
+        vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', hasSearch);
         return hasSearch ? [new SearchRootItem()] : [];
       } catch {
+        vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
         return [];
       }
     }

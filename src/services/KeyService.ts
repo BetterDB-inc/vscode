@@ -403,7 +403,10 @@ export class KeyService {
 
   async getSearchIndexList(): Promise<string[]> {
     const result = await this.executeCommand('FT._LIST');
-    return result as string[];
+    if (!Array.isArray(result)) {
+      return [];
+    }
+    return result.map(String);
   }
 
   async getSearchIndexInfo(indexName: string): Promise<FtIndexInfo> {
@@ -414,13 +417,21 @@ export class KeyService {
   async getIndexForKey(key: string): Promise<FtIndexInfo | null> {
     try {
       const cache = await this.getFtIndexSchemas();
+      let bestMatch: FtIndexInfo | null = null;
+      let bestPrefixLen = -1;
       for (const indexName of cache.list) {
         const info = cache.schemas.get(indexName);
-        if (info && (info.prefixes.length === 0 || info.prefixes.some((p) => key.startsWith(p)))) {
-          return info;
+        if (!info) continue;
+        // Skip indexes with no prefixes — they match everything, too ambiguous
+        if (info.prefixes.length === 0) continue;
+        for (const prefix of info.prefixes) {
+          if (key.startsWith(prefix) && prefix.length > bestPrefixLen) {
+            bestMatch = info;
+            bestPrefixLen = prefix.length;
+          }
         }
       }
-      return null;
+      return bestMatch;
     } catch {
       return null;
     }
@@ -437,8 +448,13 @@ export class KeyService {
     try {
       const list = await this.getSearchIndexList();
       const schemas = new Map<string, FtIndexInfo>();
-      for (const indexName of list) {
-        const info = await this.getSearchIndexInfo(indexName);
+      const results = await Promise.all(
+        list.map(async (indexName) => {
+          const info = await this.getSearchIndexInfo(indexName);
+          return { indexName, info };
+        })
+      );
+      for (const { indexName, info } of results) {
         schemas.set(indexName, info);
       }
       this.ftIndexCache = { list, schemas, expiresAt: Date.now() + this.FT_CACHE_TTL_MS };

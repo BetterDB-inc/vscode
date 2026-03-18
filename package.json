@@ -57,7 +57,7 @@
         {
           "id": "betterdb-search",
           "name": "Search Indexes",
-          "when": "true"
+          "when": "betterdb.hasSearchModule"
         },
         {
           "id": "betterdb.statsView",
