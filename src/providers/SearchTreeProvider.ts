@@ -65,6 +65,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
   }
 
   refresh(): void {
+    this.keyService?.clearFtCache();
     this._onDidChangeTreeData.fire(undefined);
   }
 
