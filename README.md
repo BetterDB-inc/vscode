@@ -52,6 +52,16 @@ Monitor your Valkey instance health at a glance. View real-time metrics includin
 
 ![Server Stats](resources/screenshots/server-stats.png)
 
+### Search Index Browser
+
+Browse Valkey Search (FT) indexes directly in the sidebar. See index schemas, field types, document counts, and indexing state at a glance. Hash key editors show inline field-type badges when a key belongs to an indexed prefix.
+
+- Supports TEXT, TAG, NUMERIC, VECTOR, GEO, and GEOSHAPES field types
+- VECTOR fields display dimension count and distance metric
+- Automatically detects whether the Search module is available
+
+![Search Indexes](resources/screenshots/indexes.png)
+
 ### Integrated CLI
 
 Execute commands directly with full output formatting. Command history persists across sessions.
