@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/ConnectionManager';
 import { ConnectionTreeItem } from '../providers/ConnectionTreeProvider';
 import { KeyTreeProvider } from '../providers/KeyTreeProvider';
+import { SearchTreeProvider } from '../providers/SearchTreeProvider';
 import { ConnectionConfig, SshConfig } from '../models/connection.model';
 import { generateId } from '../utils/helpers';
 import { DEFAULT_CONNECTION, CLI } from '../utils/constants';
@@ -206,7 +207,8 @@ async function collectConnectionForm(defaults: Partial<ConnectionFormData>): Pro
 export function registerConnectionCommands(
   context: vscode.ExtensionContext,
   connectionManager: ConnectionManager,
-  keyTreeProvider: KeyTreeProvider
+  keyTreeProvider: KeyTreeProvider,
+  searchTreeProvider: SearchTreeProvider
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('betterdb.addConnection', async () => {
@@ -287,6 +289,7 @@ export function registerConnectionCommands(
         );
 
         keyTreeProvider.setActiveConnection(connectionId);
+        searchTreeProvider.setActiveConnection(connectionId);
         vscode.commands.executeCommand('betterdb-keys.focus');
         vscode.window.showInformationMessage(`Connected to ${connectionName}`);
       } catch (err) {
@@ -297,6 +300,7 @@ export function registerConnectionCommands(
     vscode.commands.registerCommand('betterdb.disconnect', async (item: ConnectionTreeItem) => {
       await connectionManager.disconnect(item.config.id);
       keyTreeProvider.clear();
+      searchTreeProvider.clear();
       vscode.window.showInformationMessage('Disconnected');
     }),
 
@@ -367,6 +371,7 @@ export function registerConnectionCommands(
       if (confirm === 'Delete') {
         await connectionManager.deleteConnection(item.config.id);
         keyTreeProvider.clear();
+        searchTreeProvider.clear();
         vscode.window.showInformationMessage(`Connection "${item.config.name}" deleted`);
       }
     })

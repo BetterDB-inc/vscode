@@ -3,16 +3,19 @@ import { ConnectionManager } from '../services/ConnectionManager';
 import { KeyService } from '../services/KeyService';
 import { KeyTreeProvider, KeyTreeItem } from '../providers/KeyTreeProvider';
 import { KeyEditorProvider } from '../providers/KeyEditorProvider';
+import { SearchTreeProvider } from '../providers/SearchTreeProvider';
 
 export function registerKeyCommands(
   context: vscode.ExtensionContext,
   connectionManager: ConnectionManager,
   keyTreeProvider: KeyTreeProvider,
-  keyEditorProvider: KeyEditorProvider
+  keyEditorProvider: KeyEditorProvider,
+  searchTreeProvider: SearchTreeProvider
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('betterdb.browseKeys', (connectionId: string) => {
       keyTreeProvider.setActiveConnection(connectionId);
+      searchTreeProvider.setActiveConnection(connectionId);
       vscode.commands.executeCommand('betterdb-keys.focus');
     }),
 

@@ -49,4 +49,5 @@ export const COMMANDS = {
   OPEN_CLI: 'betterdb.openCli',
   ADD_KEY: 'betterdb.addKey',
   REFRESH_STATS: 'betterdb.refreshStats',
+  REFRESH_SEARCH: 'betterdb.refreshSearch',
 } as const;

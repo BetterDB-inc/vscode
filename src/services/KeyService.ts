@@ -1,12 +1,15 @@
 import Valkey from 'iovalkey';
 import { KeyInfo, KeyValue, KeyType } from '../models/key.model';
 import { ScanResult } from '../models/types.model';
+import { FtIndexInfo, FtFieldInfo, FtFieldType } from '../shared/types';
 import { arrayToObject } from '../utils/helpers';
 import { createError, ErrorCode } from '../utils/errors';
 
 export class KeyService {
   private scanLock: Promise<void> = Promise.resolve();
   private scanAbortController: AbortController | null = null;
+  private ftIndexCache: { list: string[]; schemas: Map<string, FtIndexInfo>; expiresAt: number } | null = null;
+  private readonly FT_CACHE_TTL_MS = 30_000;
 
   constructor(private client: Valkey) {}
 
@@ -387,5 +390,168 @@ export class KeyService {
       // MODULE LIST may not be available or may fail - assume no JSON support
       return false;
     }
+  }
+
+  async hasSearchModule(): Promise<boolean> {
+    try {
+      const result = await this.executeCommand('FT._LIST');
+      return Array.isArray(result);
+    } catch {
+      return false;
+    }
+  }
+
+  async getSearchIndexList(): Promise<string[]> {
+    const result = await this.executeCommand('FT._LIST');
+    return result as string[];
+  }
+
+  async getSearchIndexInfo(indexName: string): Promise<FtIndexInfo> {
+    const raw = await this.executeCommand('FT.INFO', indexName) as unknown[];
+    return this.parseFtInfo(indexName, raw);
+  }
+
+  async getIndexForKey(key: string): Promise<FtIndexInfo | null> {
+    try {
+      const cache = await this.getFtIndexSchemas();
+      for (const indexName of cache.list) {
+        const info = cache.schemas.get(indexName);
+        if (info && (info.prefixes.length === 0 || info.prefixes.some((p) => key.startsWith(p)))) {
+          return info;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  clearFtCache(): void {
+    this.ftIndexCache = null;
+  }
+
+  private async getFtIndexSchemas(): Promise<{ list: string[]; schemas: Map<string, FtIndexInfo> }> {
+    if (this.ftIndexCache && Date.now() < this.ftIndexCache.expiresAt) {
+      return this.ftIndexCache;
+    }
+    try {
+      const list = await this.getSearchIndexList();
+      const schemas = new Map<string, FtIndexInfo>();
+      for (const indexName of list) {
+        const info = await this.getSearchIndexInfo(indexName);
+        schemas.set(indexName, info);
+      }
+      this.ftIndexCache = { list, schemas, expiresAt: Date.now() + this.FT_CACHE_TTL_MS };
+      return this.ftIndexCache;
+    } catch (err) {
+      this.ftIndexCache = null;
+      throw err;
+    }
+  }
+
+  private parseFtInfo(indexName: string, raw: unknown[]): FtIndexInfo {
+    const map = new Map<string, unknown>();
+    for (let i = 0; i < raw.length - 1; i += 2) {
+      map.set(String(raw[i]), raw[i + 1]);
+    }
+
+    const numDocs = Number(map.get('num_docs') ?? 0);
+
+    let indexingState: 'indexed' | 'indexing' = 'indexing';
+    const state = map.get('state');
+    if (state !== undefined) {
+      indexingState = state === 'ready' ? 'indexed' : 'indexing';
+    } else {
+      const indexing = map.get('indexing');
+      indexingState = indexing === '0' || indexing === 0 ? 'indexed' : 'indexing';
+    }
+
+    let percentIndexed = 0;
+    const backfill = map.get('backfill_complete_percent');
+    const pctIndexed = map.get('percent_indexed');
+    if (backfill !== undefined) {
+      const val = Number(backfill);
+      percentIndexed = val <= 1 ? val * 100 : val;
+    } else if (pctIndexed !== undefined) {
+      const val = Number(pctIndexed);
+      percentIndexed = val <= 1 ? val * 100 : val;
+    }
+
+    let indexOn: 'HASH' | 'JSON' = 'HASH';
+    let prefixes: string[] = [];
+    const indexDef = map.get('index_definition');
+    if (Array.isArray(indexDef)) {
+      const defMap = new Map<string, unknown>();
+      for (let i = 0; i < indexDef.length - 1; i += 2) {
+        defMap.set(String(indexDef[i]), indexDef[i + 1]);
+      }
+      const keyType = defMap.get('key_type');
+      if (keyType === 'JSON') {
+        indexOn = 'JSON';
+      }
+      const pfx = defMap.get('prefixes');
+      if (Array.isArray(pfx)) {
+        prefixes = pfx.map(String);
+      }
+    }
+
+    const fields: FtFieldInfo[] = [];
+    const attributes = map.get('attributes');
+    if (Array.isArray(attributes)) {
+      for (const attr of attributes) {
+        if (!Array.isArray(attr)) continue;
+        const fieldMap = new Map<string, unknown>();
+        for (let i = 0; i < attr.length - 1; i += 2) {
+          fieldMap.set(String(attr[i]).toLowerCase(), attr[i + 1]);
+        }
+
+        const fieldName = String(fieldMap.get('identifier') ?? fieldMap.get('attribute') ?? '');
+        const fieldType = (String(fieldMap.get('type') ?? 'TEXT').toUpperCase()) as FtFieldType;
+
+        const field: FtFieldInfo = { name: fieldName, type: fieldType };
+
+        if (fieldType === 'VECTOR') {
+          const indexArr = fieldMap.get('index');
+          const vecMap = new Map<string, unknown>();
+          let algorithmArr: unknown[] | null = null;
+          if (Array.isArray(indexArr)) {
+            for (let i = 0; i < indexArr.length - 1; i += 2) {
+              const key = String(indexArr[i]).toLowerCase();
+              const value = indexArr[i + 1];
+              if (Array.isArray(value)) {
+                if (key === 'algorithm') {
+                  algorithmArr = value;
+                }
+                continue;
+              }
+              vecMap.set(key, value);
+            }
+          }
+          field.vectorDimension = Number(vecMap.get('dimensions') ?? vecMap.get('dim') ?? 0) || undefined;
+          const metric = vecMap.get('distance_metric');
+          field.vectorDistanceMetric = metric !== null && metric !== undefined ? String(metric) : undefined;
+          if (algorithmArr) {
+            const algoMap = new Map<string, unknown>();
+            for (let i = 0; i < algorithmArr.length - 1; i += 2) {
+              algoMap.set(String(algorithmArr[i]).toLowerCase(), algorithmArr[i + 1]);
+            }
+            const algoName = algoMap.get('name');
+            field.vectorAlgorithm = algoName !== null && algoName !== undefined ? String(algoName) : undefined;
+          }
+        }
+
+        fields.push(field);
+      }
+    }
+
+    return {
+      name: indexName,
+      numDocs,
+      indexingState,
+      percentIndexed,
+      fields,
+      indexOn,
+      prefixes,
+    };
   }
 }

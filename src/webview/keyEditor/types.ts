@@ -1,8 +1,29 @@
+export type FtFieldType = 'TEXT' | 'TAG' | 'NUMERIC' | 'VECTOR' | 'GEO' | 'GEOSHAPES';
+
+export interface FtFieldInfo {
+  name: string;
+  type: FtFieldType;
+  vectorDimension?: number;
+  vectorAlgorithm?: string;
+  vectorDistanceMetric?: string;
+}
+
+export interface FtIndexInfo {
+  name: string;
+  numDocs: number;
+  indexingState: 'indexed' | 'indexing';
+  percentIndexed: number;
+  fields: FtFieldInfo[];
+  indexOn: 'HASH' | 'JSON';
+  prefixes: string[];
+}
+
 export interface KeyData {
   key: string;
   type: 'string' | 'hash' | 'list' | 'set' | 'zset' | 'stream' | 'json';
   ttl: number;
   value: StringValue | HashValue | ListValue | SetValue | ZSetValue | StreamValue | JsonValue;
+  ftSchema?: FtIndexInfo | null;
 }
 
 export interface StringValue {

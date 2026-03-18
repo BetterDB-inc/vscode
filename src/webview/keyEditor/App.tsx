@@ -161,6 +161,7 @@ export const App: React.FC<AppProps> = ({ initialData }) => {
             fields={(data.value as HashValue).fields}
             total={(data.value as HashValue).total}
             onChange={updateValue}
+            ftSchema={data.ftSchema}
           />
         );
       case 'list':
