@@ -14,19 +14,6 @@ interface HashEditorProps {
   ftSchema?: FtIndexInfo | null;
 }
 
-const ftBadgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  fontSize: '10px',
-  fontWeight: 500,
-  padding: '1px 6px',
-  borderRadius: '3px',
-  marginLeft: '6px',
-  backgroundColor: 'var(--vscode-badge-background, #4d4d4d)',
-  color: 'var(--vscode-badge-foreground, #ffffff)',
-  letterSpacing: '0.3px',
-  verticalAlign: 'middle',
-};
-
 export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange, ftSchema }) => {
   const handleChange = (index: number, key: 'field' | 'value', value: string) => {
     const updated = [...fields];
@@ -82,7 +69,7 @@ export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange,
                 placeholder="Field name"
                 style={{ flex: 1 }}
               />
-              {badgeText && <span style={ftBadgeStyle}>{badgeText}</span>}
+              {badgeText && <span className={styles.ftBadge}>{badgeText}</span>}
             </div>
             <input
               type="text"

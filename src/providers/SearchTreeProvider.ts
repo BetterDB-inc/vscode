@@ -13,15 +13,7 @@ const FIELD_ICONS: Record<string, string> = {
   GEOSHAPES: 'globe',
 };
 
-type SearchTreeItem = SearchRootItem | FtIndexItem | FtFieldItem;
-
-class SearchRootItem extends vscode.TreeItem {
-  constructor() {
-    super('Search Indexes', vscode.TreeItemCollapsibleState.Collapsed);
-    this.iconPath = new vscode.ThemeIcon('search');
-    this.contextValue = 'search-root';
-  }
-}
+type SearchTreeItem = FtIndexItem | FtFieldItem;
 
 class FtIndexItem extends vscode.TreeItem {
   constructor(public readonly info: FtIndexInfo) {
@@ -82,23 +74,15 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
 
   async getChildren(element?: SearchTreeItem): Promise<SearchTreeItem[]> {
     if (!this.keyService || !this.activeConnectionId) {
-      vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
+      await vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
       return [];
     }
 
     if (!element) {
       try {
         const hasSearch = await this.keyService.hasSearchModule();
-        vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', hasSearch);
-        return hasSearch ? [new SearchRootItem()] : [];
-      } catch {
-        vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
-        return [];
-      }
-    }
-
-    if (element instanceof SearchRootItem) {
-      try {
+        await vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', hasSearch);
+        if (!hasSearch) return [];
         const indexes = await this.keyService.getSearchIndexList();
         if (indexes.length === 0) {
           const empty = new vscode.TreeItem('No indexes found');
@@ -126,6 +110,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
         }
         return items;
       } catch (err) {
+        await vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
         showError(err, 'Failed to load search indexes');
         const errorItem = new vscode.TreeItem('Failed to load indexes');
         errorItem.iconPath = new vscode.ThemeIcon('error');

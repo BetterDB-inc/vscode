@@ -419,11 +419,15 @@ export class KeyService {
       const cache = await this.getFtIndexSchemas();
       let bestMatch: FtIndexInfo | null = null;
       let bestPrefixLen = -1;
+      let catchAll: FtIndexInfo | null = null;
       for (const indexName of cache.list) {
         const info = cache.schemas.get(indexName);
         if (!info) continue;
-        // Skip indexes with no prefixes — they match everything, too ambiguous
-        if (info.prefixes.length === 0) continue;
+        if (info.prefixes.length === 0) {
+          // Catch-all index — use as fallback if no prefix-specific match
+          if (!catchAll) catchAll = info;
+          continue;
+        }
         for (const prefix of info.prefixes) {
           if (key.startsWith(prefix) && prefix.length > bestPrefixLen) {
             bestMatch = info;
@@ -431,7 +435,7 @@ export class KeyService {
           }
         }
       }
-      return bestMatch;
+      return bestMatch ?? catchAll;
     } catch {
       return null;
     }
@@ -466,6 +470,9 @@ export class KeyService {
   }
 
   private parseFtInfo(indexName: string, raw: unknown[]): FtIndexInfo {
+    if (raw.length % 2 !== 0) {
+      console.warn(`FT.INFO for "${indexName}" returned odd-length array (${raw.length} elements) — last element dropped`);
+    }
     const map = new Map<string, unknown>();
     for (let i = 0; i < raw.length - 1; i += 2) {
       map.set(String(raw[i]), raw[i + 1]);

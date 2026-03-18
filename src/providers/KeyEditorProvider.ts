@@ -131,7 +131,9 @@ export class KeyEditorProvider implements vscode.Disposable {
         case 'refresh': {
           const newValue = await keyService.getValue(key);
           if (newValue) {
-            panel.webview.postMessage({ command: 'update', data: this.toWebviewData(newValue) });
+            let refreshedSchema: FtIndexInfo | null = null;
+            try { refreshedSchema = await keyService.getIndexForKey(key); } catch { /* ignore */ }
+            panel.webview.postMessage({ command: 'update', data: this.toWebviewData(newValue, refreshedSchema) });
           } else {
             vscode.window.showWarningMessage('Key no longer exists');
             panel.dispose();

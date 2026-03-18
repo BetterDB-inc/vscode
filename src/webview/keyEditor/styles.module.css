@@ -392,3 +392,16 @@
   color: var(--vscode-descriptionForeground, #8b8b8b);
   font-size: 13px;
 }
+
+.ftBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 6px;
+  background-color: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
