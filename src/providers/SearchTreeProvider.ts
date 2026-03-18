@@ -54,6 +54,10 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
     if (client) {
       this.activeConnectionId = connectionId;
       this.keyService = new KeyService(client);
+      this.keyService.hasSearchModule().then(
+        (has) => vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', has),
+        () => vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false)
+      );
       this.refresh();
     }
   }
@@ -61,6 +65,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
   clear(): void {
     this.activeConnectionId = null;
     this.keyService = null;
+    vscode.commands.executeCommand('setContext', 'betterdb.hasSearchModule', false);
     this.refresh();
   }
 
