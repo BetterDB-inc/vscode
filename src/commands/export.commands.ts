@@ -72,14 +72,14 @@ export function registerExportCommands(
 
       if (!uri) return;
 
-      await vscode.window.withProgress(
+      const exportResult = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
           title: 'Exporting keys...',
           cancellable: true,
         },
         async (progress, token) => {
-          const result = await exportKeys(client, {
+          return exportKeys(client, {
             keys: keysToExport,
             pattern,
             format: format.value,
@@ -92,16 +92,16 @@ export function registerExportCommands(
             },
             cancellationToken: token,
           });
-
-          const openAction = await vscode.window.showInformationMessage(
-            `Exported ${result.exported} keys to ${uri.fsPath}`,
-            'Open File'
-          );
-          if (openAction === 'Open File') {
-            vscode.commands.executeCommand('vscode.open', uri);
-          }
         }
       );
+
+      const openAction = await vscode.window.showInformationMessage(
+        `Exported ${exportResult.exported} keys to ${uri.fsPath}`,
+        'Open File'
+      );
+      if (openAction === 'Open File') {
+        vscode.commands.executeCommand('vscode.open', uri);
+      }
     }),
 
     vscode.commands.registerCommand(COMMANDS.IMPORT_KEYS, async (arg?: string | { config?: { id: string } }) => {
@@ -146,15 +146,14 @@ export function registerExportCommands(
 
       if (!strategy) return;
 
-      // Import with progress
-      await vscode.window.withProgress(
+      const importResult = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
           title: 'Importing keys...',
           cancellable: true,
         },
         async (progress, token) => {
-          const result = await importKeys(client, {
+          return importKeys(client, {
             filePath,
             conflictStrategy: strategy.value,
             onProgress: (imported, total) => {
@@ -169,17 +168,17 @@ export function registerExportCommands(
             },
             cancellationToken: token,
           });
-
-          let summary = `Imported ${result.imported} keys`;
-          if (result.skipped > 0) summary += `, ${result.skipped} skipped`;
-          if (result.failed > 0) summary += `, ${result.failed} failed`;
-
-          const action = await vscode.window.showInformationMessage(summary, 'Refresh Key Browser');
-          if (action === 'Refresh Key Browser') {
-            keyTreeProvider.refresh();
-          }
         }
       );
+
+      let summary = `Imported ${importResult.imported} keys`;
+      if (importResult.skipped > 0) summary += `, ${importResult.skipped} skipped`;
+      if (importResult.failed > 0) summary += `, ${importResult.failed} failed`;
+
+      const action = await vscode.window.showInformationMessage(summary, 'Refresh Key Browser');
+      if (action === 'Refresh Key Browser') {
+        keyTreeProvider.refresh();
+      }
     })
   );
 }
