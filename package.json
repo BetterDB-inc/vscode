@@ -35,20 +35,7 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
-    "keybindings": [
-      {
-        "command": "betterdb.renameKey",
-        "key": "f2",
-        "when": "view == betterdb-keys"
-      },
-      {
-        "command": "betterdb.deleteKey",
-        "key": "delete",
-        "mac": "cmd+backspace",
-        "when": "view == betterdb-keys"
-      }
-    ],
-    "viewsContainers": {
+"viewsContainers": {
       "activitybar": [
         {
           "id": "betterdb",
