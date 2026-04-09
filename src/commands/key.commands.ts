@@ -4,6 +4,8 @@ import { KeyService } from '../services/KeyService';
 import { KeyTreeProvider, KeyTreeItem } from '../providers/KeyTreeProvider';
 import { KeyEditorProvider } from '../providers/KeyEditorProvider';
 import { SearchTreeProvider } from '../providers/SearchTreeProvider';
+import { COMMANDS } from '../utils/constants';
+import { validateTTLInput } from '../utils/validators';
 
 export function registerKeyCommands(
   context: vscode.ExtensionContext,
@@ -206,6 +208,42 @@ export function registerKeyCommands(
       } catch (err) {
         vscode.window.showErrorMessage(
           `Failed to create key: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+      }
+    })
+    ,
+
+    vscode.commands.registerCommand(COMMANDS.EDIT_TTL, async (item: KeyTreeItem) => {
+      const client = connectionManager.getClient(item.connectionId);
+      if (!client) {
+        vscode.window.showErrorMessage('Not connected to database');
+        return;
+      }
+
+      const currentTTL = item.keyInfo.ttl;
+      const input = await vscode.window.showInputBox({
+        prompt: 'Enter TTL in seconds (-1 to remove expiry)',
+        value: currentTTL > 0 ? String(currentTTL) : '',
+        validateInput: (value) => {
+          const result = validateTTLInput(value);
+          return result.valid ? null : result.error!;
+        },
+      });
+
+      if (input === undefined) return;
+
+      const newTTL = parseInt(input, 10);
+      const previousTTL = currentTTL;
+
+      keyTreeProvider.updateItemTTL(item, newTTL);
+
+      try {
+        const keyService = new KeyService(client);
+        await keyService.setTTL(item.keyInfo.key, newTTL);
+      } catch (err) {
+        keyTreeProvider.updateItemTTL(item, previousTTL);
+        vscode.window.showErrorMessage(
+          `Failed to set TTL: ${err instanceof Error ? err.message : 'Unknown error'}`
         );
       }
     })
