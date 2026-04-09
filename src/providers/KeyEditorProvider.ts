@@ -82,6 +82,14 @@ export class KeyEditorProvider implements vscode.Disposable {
     panel.webview.html = this.getWebviewContent(panel.webview, keyValue, ftSchema);
   }
 
+  closePanel(connectionId: string, key: string): void {
+    const panelKey = `${connectionId}:${key}`;
+    const panel = this.panels.get(panelKey);
+    if (panel) {
+      panel.dispose();
+    }
+  }
+
   notifyTTLChanged(connectionId: string, key: string, newTTL: number): void {
     const panelKey = `${connectionId}:${key}`;
     const panel = this.panels.get(panelKey);
