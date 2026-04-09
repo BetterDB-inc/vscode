@@ -39,13 +39,13 @@
       {
         "command": "betterdb.renameKey",
         "key": "f2",
-        "when": "focusedView == betterdb-keys && listFocus"
+        "when": "view == betterdb-keys"
       },
       {
         "command": "betterdb.deleteKey",
         "key": "delete",
         "mac": "cmd+backspace",
-        "when": "focusedView == betterdb-keys && listFocus"
+        "when": "view == betterdb-keys"
       }
     ],
     "viewsContainers": {
