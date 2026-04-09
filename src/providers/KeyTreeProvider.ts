@@ -50,6 +50,19 @@ export class KeyTreeProvider implements vscode.TreeDataProvider<KeyTreeItem> {
     this._onDidChangeTreeData.fire(undefined);
   }
 
+  updateItemTTL(item: KeyTreeItem, newTTL: number): void {
+    const ttlText = newTTL > 0 ? ` (TTL: ${formatTTL(newTTL)})` : '';
+    item.description = `${item.keyInfo.type}${ttlText}`;
+
+    item.tooltip = new vscode.MarkdownString(
+      `**${item.keyInfo.key.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1')}**\n\n` +
+      `Type: \`${item.keyInfo.type}\`\n\n` +
+      `TTL: ${formatTTL(newTTL)}${item.keyInfo.size ? `\nSize: ${formatBytes(item.keyInfo.size)}` : ''}${item.keyInfo.encoding ? `\nEncoding: ${item.keyInfo.encoding}` : ''}`
+    );
+
+    this._onDidChangeTreeData.fire(item);
+  }
+
   clear(): void {
     if (this.keyService) {
       this.keyService.cancelScan();
