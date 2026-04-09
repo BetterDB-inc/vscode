@@ -162,6 +162,7 @@
       {
         "command": "betterdb.editTtl",
         "title": "Edit TTL...",
+        "icon": "$(clock)",
         "category": "BetterDB"
       }
     ],
@@ -266,6 +267,11 @@
         {
           "command": "betterdb.editTtl",
           "when": "viewItem =~ /^key-/"
+        },
+        {
+          "command": "betterdb.editTtl",
+          "when": "viewItem =~ /^key-/",
+          "group": "inline"
         },
         {
           "command": "betterdb.deleteKey",
