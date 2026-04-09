@@ -35,6 +35,19 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "keybindings": [
+      {
+        "command": "betterdb.renameKey",
+        "key": "f2",
+        "when": "focusedView == betterdb-keys && viewItem =~ /^key-/"
+      },
+      {
+        "command": "betterdb.deleteKey",
+        "key": "delete",
+        "mac": "cmd+backspace",
+        "when": "focusedView == betterdb-keys && viewItem =~ /^key-/"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
