@@ -135,7 +135,7 @@ export async function exportKeys(
         const key = keys[i];
         const [ttl, dump] = await Promise.all([
           client.ttl(key),
-          client.dump(key),
+          client.dumpBuffer(key),
         ]);
 
         if (!dump) continue;
@@ -143,7 +143,7 @@ export async function exportKeys(
         const line = JSON.stringify({
           key,
           ttl: ttl > 0 ? ttl : 0,
-          dump: (dump as Buffer).toString('base64'),
+          dump: dump.toString('base64'),
         });
         stream.write(line + '\n');
         exported++;

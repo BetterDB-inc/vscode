@@ -231,13 +231,12 @@ async function importBinary(
 
     try {
       const dumpBuffer = Buffer.from(dumpBase64, 'base64');
-      const restoreArgs: (string | number | Buffer)[] = [key, ttl > 0 ? ttl * 1000 : 0, dumpBuffer];
+      const ttlMs = ttl > 0 ? ttl * 1000 : 0;
       if (options.conflictStrategy === 'overwrite') {
-        restoreArgs.push('REPLACE');
+        await client.restore(key, ttlMs, dumpBuffer, 'REPLACE');
+      } else {
+        await client.restore(key, ttlMs, dumpBuffer);
       }
-      await (client as unknown as { call: (cmd: string, ...args: unknown[]) => Promise<unknown> }).call(
-        'RESTORE', ...restoreArgs
-      );
       result.imported++;
     } catch (err) {
       result.failed++;
