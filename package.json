@@ -162,6 +162,16 @@
       {
         "command": "betterdb.editTtl",
         "title": "Edit TTL...",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.renameKey",
+        "title": "Rename Key...",
+        "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.editKey",
+        "title": "Edit Key",
         "icon": "$(edit)",
         "category": "BetterDB"
       }
@@ -208,6 +218,14 @@
         },
         {
           "command": "betterdb.editTtl",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.renameKey",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.editKey",
           "when": "false"
         }
       ],
@@ -269,7 +287,11 @@
           "when": "viewItem =~ /^key-/"
         },
         {
-          "command": "betterdb.editTtl",
+          "command": "betterdb.renameKey",
+          "when": "viewItem =~ /^key-/"
+        },
+        {
+          "command": "betterdb.editKey",
           "when": "viewItem =~ /^key-/",
           "group": "inline"
         },

@@ -248,5 +248,48 @@ export function registerKeyCommands(
         );
       }
     })
+    ,
+
+    vscode.commands.registerCommand(COMMANDS.RENAME_KEY, async (item: KeyTreeItem) => {
+      const client = connectionManager.getClient(item.connectionId);
+      if (!client) {
+        vscode.window.showErrorMessage('Not connected to database');
+        return;
+      }
+
+      const newName = await vscode.window.showInputBox({
+        prompt: 'Enter new key name',
+        value: item.keyInfo.key,
+        validateInput: (value) => value.trim() ? null : 'Key name is required',
+      });
+
+      if (newName === undefined || newName === item.keyInfo.key) return;
+
+      try {
+        const keyService = new KeyService(client);
+        await keyService.renameKey(item.keyInfo.key, newName);
+        keyTreeProvider.refresh();
+        vscode.window.showInformationMessage(`Key renamed to "${newName}"`);
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Failed to rename key: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+      }
+    })
+    ,
+
+    vscode.commands.registerCommand(COMMANDS.EDIT_KEY, async (item: KeyTreeItem) => {
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: '$(edit) Edit TTL...', command: COMMANDS.EDIT_TTL },
+          { label: '$(symbol-key) Rename Key...', command: COMMANDS.RENAME_KEY },
+        ],
+        { placeHolder: `Edit "${item.keyInfo.key}"` }
+      );
+
+      if (choice) {
+        vscode.commands.executeCommand(choice.command, item);
+      }
+    })
   );
 }

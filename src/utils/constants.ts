@@ -51,4 +51,6 @@ export const COMMANDS = {
   REFRESH_STATS: 'betterdb.refreshStats',
   REFRESH_SEARCH: 'betterdb.refreshSearch',
   EDIT_TTL: 'betterdb.editTtl',
+  RENAME_KEY: 'betterdb.renameKey',
+  EDIT_KEY: 'betterdb.editKey',
 } as const;
