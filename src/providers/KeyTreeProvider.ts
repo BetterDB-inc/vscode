@@ -51,11 +51,13 @@ export class KeyTreeProvider implements vscode.TreeDataProvider<KeyTreeItem> {
   }
 
   updateItemTTL(item: KeyTreeItem, newTTL: number): void {
+    item.keyInfo.ttl = newTTL;
+
     const ttlText = newTTL > 0 ? ` (TTL: ${formatTTL(newTTL)})` : '';
     item.description = `${item.keyInfo.type}${ttlText}`;
 
     item.tooltip = new vscode.MarkdownString(
-      `**${item.keyInfo.key.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1')}**\n\n` +
+      `**${escapeMarkdown(item.keyInfo.key)}**\n\n` +
       `Type: \`${item.keyInfo.type}\`\n\n` +
       `TTL: ${formatTTL(newTTL)}${item.keyInfo.size ? `\nSize: ${formatBytes(item.keyInfo.size)}` : ''}${item.keyInfo.encoding ? `\nEncoding: ${item.keyInfo.encoding}` : ''}`
     );
@@ -202,7 +204,7 @@ export class KeyTreeItem extends vscode.TreeItem {
     const encodingText = keyInfo.encoding ? `\nEncoding: ${keyInfo.encoding}` : '';
 
     this.tooltip = new vscode.MarkdownString(
-      `**${this.escapeMarkdown(keyInfo.key)}**\n\n` +
+      `**${escapeMarkdown(keyInfo.key)}**\n\n` +
       `Type: \`${keyInfo.type}\`\n\n` +
       `TTL: ${formatTTL(keyInfo.ttl)}${sizeText}${encodingText}`
     );
@@ -216,7 +218,8 @@ export class KeyTreeItem extends vscode.TreeItem {
     };
   }
 
-  private escapeMarkdown(text: string): string {
-    return text.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1');
-  }
+}
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1');
 }
