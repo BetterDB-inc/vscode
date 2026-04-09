@@ -178,12 +178,13 @@
       {
         "command": "betterdb.exportKeys",
         "title": "Export Keys",
-        "icon": "$(cloud-download)",
+        "icon": "$(arrow-up)",
         "category": "BetterDB"
       },
       {
         "command": "betterdb.importKeys",
         "title": "Import Keys...",
+        "icon": "$(arrow-down)",
         "category": "BetterDB"
       }
     ],
@@ -267,6 +268,11 @@
         },
         {
           "command": "betterdb.exportKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.importKeys",
           "when": "view == betterdb-keys",
           "group": "navigation"
         },
