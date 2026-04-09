@@ -178,13 +178,13 @@
       {
         "command": "betterdb.exportKeys",
         "title": "Export Keys",
-        "icon": "$(arrow-up)",
+        "icon": "$(sign-out)",
         "category": "BetterDB"
       },
       {
         "command": "betterdb.importKeys",
         "title": "Import Keys...",
-        "icon": "$(arrow-down)",
+        "icon": "$(sign-in)",
         "category": "BetterDB"
       }
     ],
@@ -262,17 +262,17 @@
           "group": "navigation"
         },
         {
-          "command": "betterdb.addKey",
-          "when": "view == betterdb-keys",
-          "group": "navigation"
-        },
-        {
           "command": "betterdb.exportKeys",
           "when": "view == betterdb-keys",
           "group": "navigation"
         },
         {
           "command": "betterdb.importKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.addKey",
           "when": "view == betterdb-keys",
           "group": "navigation"
         },
