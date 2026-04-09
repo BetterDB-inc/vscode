@@ -158,6 +158,11 @@
         "title": "Refresh Stats",
         "icon": "$(refresh)",
         "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.editTtl",
+        "title": "Edit TTL...",
+        "category": "BetterDB"
       }
     ],
     "viewsWelcome": [
@@ -198,6 +203,10 @@
         },
         {
           "command": "betterdb.deleteKey",
+          "when": "false"
+        },
+        {
+          "command": "betterdb.editTtl",
           "when": "false"
         }
       ],
@@ -253,6 +262,10 @@
         {
           "command": "betterdb.deleteConnection",
           "when": "viewItem =~ /^connection/"
+        },
+        {
+          "command": "betterdb.editTtl",
+          "when": "viewItem =~ /^key-/"
         },
         {
           "command": "betterdb.deleteKey",
