@@ -252,22 +252,22 @@
           "group": "navigation"
         },
         {
-          "command": "betterdb.filterKeys",
-          "when": "view == betterdb-keys",
-          "group": "navigation"
-        },
-        {
           "command": "betterdb.refreshKeys",
           "when": "view == betterdb-keys",
           "group": "navigation"
         },
         {
-          "command": "betterdb.exportKeys",
+          "command": "betterdb.filterKeys",
           "when": "view == betterdb-keys",
           "group": "navigation"
         },
         {
           "command": "betterdb.importKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.exportKeys",
           "when": "view == betterdb-keys",
           "group": "navigation"
         },
