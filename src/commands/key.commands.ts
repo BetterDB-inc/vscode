@@ -53,6 +53,7 @@ export function registerKeyCommands(
     ),
 
     vscode.commands.registerCommand('betterdb.deleteKey', async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
       const confirm = await vscode.window.showWarningMessage(
         `Delete key "${item.keyInfo.key}"?`,
         { modal: true },
@@ -251,6 +252,7 @@ export function registerKeyCommands(
     ,
 
     vscode.commands.registerCommand(COMMANDS.RENAME_KEY, async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
       const client = connectionManager.getClient(item.connectionId);
       if (!client) {
         vscode.window.showErrorMessage('Not connected to database');
