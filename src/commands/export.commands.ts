@@ -104,8 +104,13 @@ export function registerExportCommands(
       );
     }),
 
-    vscode.commands.registerCommand(COMMANDS.IMPORT_KEYS, async (connectionId?: string) => {
-      if (!connectionId) {
+    vscode.commands.registerCommand(COMMANDS.IMPORT_KEYS, async (arg?: string | { config?: { id: string } }) => {
+      let connectionId: string | undefined;
+      if (typeof arg === 'string') {
+        connectionId = arg;
+      } else if (arg?.config?.id) {
+        connectionId = arg.config.id;
+      } else {
         connectionId = keyTreeProvider.getActiveConnectionId() ?? undefined;
       }
       if (!connectionId) {
