@@ -178,13 +178,13 @@
       {
         "command": "betterdb.exportKeys",
         "title": "Export Keys",
-        "icon": "$(sign-out)",
+        "icon": "$(git-stash)",
         "category": "BetterDB"
       },
       {
         "command": "betterdb.importKeys",
         "title": "Import Keys...",
-        "icon": "$(sign-in)",
+        "icon": "$(git-stash-pop)",
         "category": "BetterDB"
       }
     ],
