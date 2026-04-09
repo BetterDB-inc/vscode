@@ -252,29 +252,29 @@
           "group": "navigation"
         },
         {
-          "command": "betterdb.refreshKeys",
+          "command": "betterdb.addKey",
           "when": "view == betterdb-keys",
-          "group": "navigation"
-        },
-        {
-          "command": "betterdb.filterKeys",
-          "when": "view == betterdb-keys",
-          "group": "navigation"
-        },
-        {
-          "command": "betterdb.importKeys",
-          "when": "view == betterdb-keys",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "betterdb.exportKeys",
           "when": "view == betterdb-keys",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
-          "command": "betterdb.addKey",
+          "command": "betterdb.importKeys",
           "when": "view == betterdb-keys",
-          "group": "navigation"
+          "group": "navigation@3"
+        },
+        {
+          "command": "betterdb.filterKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation@4"
+        },
+        {
+          "command": "betterdb.refreshKeys",
+          "when": "view == betterdb-keys",
+          "group": "navigation@5"
         },
         {
           "command": "betterdb.refreshSearch",
