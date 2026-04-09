@@ -28,36 +28,29 @@ export function registerExportCommands(
       const pattern = keyTreeProvider.getFilter();
       const keyService = new KeyService(client);
 
-      // Count keys matching pattern
-      const countResult = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Counting keys...' },
-        async () => {
-          const keys = await keyService.scanAllKeys(pattern, Infinity);
-          return keys.length;
-        }
+      const allKeys = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Scanning keys...' },
+        async () => keyService.scanAllKeys(pattern, Infinity)
       );
 
-      if (countResult === 0) {
+      if (allKeys.length === 0) {
         vscode.window.showInformationMessage(`No keys found matching "${pattern}"`);
         return;
       }
 
-      // Format picker
       const format = await vscode.window.showQuickPick(
         [
           { label: 'Plain Text Commands', description: 'Readable .txt file, executable via valkey-cli', value: 'text' as const },
           { label: 'Binary (RDB)', description: 'JSONL with DUMP payloads for exact key replication', value: 'binary' as const },
         ],
-        { placeHolder: `Export ${countResult} keys matching "${pattern}"` }
+        { placeHolder: `Export ${allKeys.length} keys matching "${pattern}"` }
       );
 
       if (!format) return;
 
-      // Limit option
-      let limit: number | undefined;
       const limitInput = await vscode.window.showInputBox({
-        prompt: `Export all ${countResult} keys, or enter a limit`,
-        value: String(countResult),
+        prompt: `Export all ${allKeys.length} keys, or enter a limit`,
+        value: String(allKeys.length),
         validateInput: (v) => {
           const n = parseInt(v, 10);
           if (isNaN(n) || n < 1) return 'Must be a positive number';
@@ -67,11 +60,8 @@ export function registerExportCommands(
 
       if (limitInput === undefined) return;
       const parsedLimit = parseInt(limitInput, 10);
-      if (parsedLimit < countResult) {
-        limit = parsedLimit;
-      }
+      const keysToExport = parsedLimit < allKeys.length ? allKeys.slice(0, parsedLimit) : allKeys;
 
-      // Save dialog
       const ext = format.value === 'text' ? 'txt' : 'rdb';
       const uri = await vscode.window.showSaveDialog({
         defaultUri: vscode.Uri.file(`export-${pattern.replace(/[*?]/g, '_')}.${ext}`),
@@ -82,7 +72,6 @@ export function registerExportCommands(
 
       if (!uri) return;
 
-      // Export with progress
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
@@ -91,10 +80,10 @@ export function registerExportCommands(
         },
         async (progress, token) => {
           const result = await exportKeys(client, {
+            keys: keysToExport,
             pattern,
             format: format.value,
             filePath: uri.fsPath,
-            limit,
             onProgress: (exported, total) => {
               progress.report({
                 message: `${exported} / ${total} keys`,

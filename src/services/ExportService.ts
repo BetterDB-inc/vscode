@@ -77,10 +77,10 @@ export function serializeKeyAsCommands(
 }
 
 export interface ExportOptions {
+  keys: string[];
   pattern: string;
   format: 'text' | 'binary';
   filePath: string;
-  limit?: number;
   onProgress?: (exported: number, total: number) => void;
   cancellationToken?: { isCancellationRequested: boolean };
 }
@@ -90,12 +90,14 @@ export async function exportKeys(
   options: ExportOptions
 ): Promise<{ exported: number }> {
   const keyService = new KeyService(client);
-  const scanLimit = options.limit ?? Infinity;
-
-  const keys = await scanAllKeysUnlimited(keyService, options.pattern, scanLimit, options.cancellationToken);
+  const keys = options.keys;
   const total = keys.length;
+  let exported = 0;
 
   const stream = fs.createWriteStream(options.filePath, { encoding: 'utf-8' });
+  const streamError = new Promise<never>((_, reject) => {
+    stream.on('error', reject);
+  });
 
   try {
     if (options.format === 'text') {
@@ -111,6 +113,7 @@ export async function exportKeys(
         const valueData = extractValueForSerialization(keyValue);
         const commands = serializeKeyAsCommands(key, keyValue.type, valueData, keyValue.ttl);
         stream.write(commands);
+        exported++;
 
         options.onProgress?.(i + 1, total);
       }
@@ -143,18 +146,19 @@ export async function exportKeys(
           dump: (dump as Buffer).toString('base64'),
         });
         stream.write(line + '\n');
+        exported++;
 
         options.onProgress?.(i + 1, total);
       }
     }
   } finally {
-    await new Promise<void>((resolve, reject) => {
-      stream.end(() => resolve());
-      stream.on('error', reject);
-    });
+    await Promise.race([
+      new Promise<void>((resolve) => stream.end(() => resolve())),
+      streamError,
+    ]).catch(() => {});
   }
 
-  return { exported: total };
+  return { exported };
 }
 
 function extractValueForSerialization(keyValue: { type: string; value: { type: string } & Record<string, unknown> }): unknown {
@@ -170,25 +174,3 @@ function extractValueForSerialization(keyValue: { type: string; value: { type: s
   }
 }
 
-async function scanAllKeysUnlimited(
-  keyService: KeyService,
-  pattern: string,
-  limit: number,
-  cancellationToken?: { isCancellationRequested: boolean }
-): Promise<string[]> {
-  const seenKeys = new Set<string>();
-  let cursor = '0';
-
-  do {
-    if (cancellationToken?.isCancellationRequested) break;
-
-    const result = await keyService.scanKeys(pattern, 500);
-    for (const key of result.keys) {
-      if (seenKeys.size >= limit) break;
-      seenKeys.add(key);
-    }
-    cursor = result.cursor;
-  } while (cursor !== '0' && seenKeys.size < limit);
-
-  return Array.from(seenKeys);
-}

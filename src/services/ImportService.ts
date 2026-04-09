@@ -102,13 +102,13 @@ async function importText(
   });
 
   let total = 0;
+  const skippedKeys = new Set<string>();
 
   for await (const line of rl) {
     if (options.cancellationToken?.isCancellationRequested) break;
 
     const parsed = parseCommand(line);
     if (!parsed) {
-      // Check for header comment to extract total
       if (total === 0) {
         const headerMatch = line.match(/\| (\d+) keys$/);
         if (headerMatch) {
@@ -120,8 +120,8 @@ async function importText(
 
     const { command, args } = parsed;
 
-    // Handle EXPIRE as a follow-up — no conflict check needed
     if (command === 'EXPIRE' && args.length === 2) {
+      if (skippedKeys.has(args[0])) continue;
       try {
         await (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call('EXPIRE', args[0], args[1]);
       } catch (err) {
@@ -141,6 +141,7 @@ async function importText(
             break;
           }
           result.skipped++;
+          skippedKeys.add(key);
           options.onProgress?.(result.imported + result.skipped, total);
           continue;
         }
