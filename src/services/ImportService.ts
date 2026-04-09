@@ -1,0 +1,250 @@
+import * as fs from 'fs';
+import * as readline from 'readline';
+import Valkey from 'iovalkey';
+
+export function unescapeValue(str: string): string {
+  return str.replace(/\\(\\|n|r|t|")/g, (_, ch) => {
+    switch (ch) {
+      case '\\': return '\\';
+      case 'n':  return '\n';
+      case 'r':  return '\r';
+      case 't':  return '\t';
+      case '"':  return '"';
+      default:   return ch;
+    }
+  });
+}
+
+export function parseCommand(line: string): { command: string; args: string[] } | null {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) return null;
+
+  const tokens: string[] = [];
+  let i = 0;
+
+  while (i < trimmed.length) {
+    if (trimmed[i] === ' ') {
+      i++;
+      continue;
+    }
+
+    if (trimmed[i] === '"') {
+      i++;
+      let value = '';
+      while (i < trimmed.length) {
+        if (trimmed[i] === '\\' && i + 1 < trimmed.length) {
+          value += trimmed[i] + trimmed[i + 1];
+          i += 2;
+        } else if (trimmed[i] === '"') {
+          i++;
+          break;
+        } else {
+          value += trimmed[i];
+          i++;
+        }
+      }
+      tokens.push(unescapeValue(value));
+    } else {
+      let value = '';
+      while (i < trimmed.length && trimmed[i] !== ' ') {
+        value += trimmed[i];
+        i++;
+      }
+      tokens.push(value);
+    }
+  }
+
+  if (tokens.length === 0) return null;
+
+  const command = tokens[0].toUpperCase();
+  if (tokens[0].includes('.')) {
+    return { command: tokens[0].toUpperCase(), args: tokens.slice(1) };
+  }
+
+  return { command, args: tokens.slice(1) };
+}
+
+export type ConflictStrategy = 'skip' | 'overwrite' | 'abort';
+
+export interface ImportOptions {
+  filePath: string;
+  conflictStrategy: ConflictStrategy;
+  onProgress?: (imported: number, total: number) => void;
+  cancellationToken?: { isCancellationRequested: boolean };
+}
+
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}
+
+export async function importKeys(
+  client: Valkey,
+  options: ImportOptions
+): Promise<ImportResult> {
+  const ext = options.filePath.toLowerCase();
+  if (ext.endsWith('.rdb')) {
+    return importBinary(client, options);
+  }
+  return importText(client, options);
+}
+
+async function importText(
+  client: Valkey,
+  options: ImportOptions
+): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, errors: [] };
+  const rl = readline.createInterface({
+    input: fs.createReadStream(options.filePath, { encoding: 'utf-8' }),
+    crlfDelay: Infinity,
+  });
+
+  let total = 0;
+
+  for await (const line of rl) {
+    if (options.cancellationToken?.isCancellationRequested) break;
+
+    const parsed = parseCommand(line);
+    if (!parsed) {
+      // Check for header comment to extract total
+      if (total === 0) {
+        const headerMatch = line.match(/\| (\d+) keys$/);
+        if (headerMatch) {
+          total = parseInt(headerMatch[1], 10);
+        }
+      }
+      continue;
+    }
+
+    const { command, args } = parsed;
+
+    // Handle EXPIRE as a follow-up — no conflict check needed
+    if (command === 'EXPIRE' && args.length === 2) {
+      try {
+        await (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call('EXPIRE', args[0], args[1]);
+      } catch (err) {
+        result.errors.push(`EXPIRE ${args[0]}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      continue;
+    }
+
+    // For data commands, check conflict
+    const key = args[0];
+    if (options.conflictStrategy !== 'overwrite') {
+      try {
+        const exists = await client.exists(key);
+        if (exists) {
+          if (options.conflictStrategy === 'abort') {
+            result.errors.push(`Key "${key}" already exists — import aborted`);
+            break;
+          }
+          result.skipped++;
+          options.onProgress?.(result.imported + result.skipped, total);
+          continue;
+        }
+      } catch {
+        // If EXISTS fails, proceed with import
+      }
+    }
+
+    try {
+      await (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call(command, ...args);
+      result.imported++;
+    } catch (err) {
+      result.failed++;
+      result.errors.push(`${command} ${key}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    options.onProgress?.(result.imported + result.skipped, total);
+  }
+
+  return result;
+}
+
+async function importBinary(
+  client: Valkey,
+  options: ImportOptions
+): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, errors: [] };
+  const rl = readline.createInterface({
+    input: fs.createReadStream(options.filePath, { encoding: 'utf-8' }),
+    crlfDelay: Infinity,
+  });
+
+  let total = 0;
+  let isFirstLine = true;
+
+  for await (const line of rl) {
+    if (options.cancellationToken?.isCancellationRequested) break;
+
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      result.failed++;
+      result.errors.push(`Invalid JSON line: ${trimmed.slice(0, 50)}...`);
+      continue;
+    }
+
+    // Parse header
+    if (isFirstLine && parsed._header) {
+      const header = parsed._header as { count?: number };
+      total = header.count ?? 0;
+      isFirstLine = false;
+      continue;
+    }
+    isFirstLine = false;
+
+    const key = parsed.key as string;
+    const ttl = parsed.ttl as number;
+    const dumpBase64 = parsed.dump as string;
+
+    if (!key || !dumpBase64) {
+      result.failed++;
+      result.errors.push(`Invalid entry: missing key or dump data`);
+      continue;
+    }
+
+    // Check conflict
+    if (options.conflictStrategy !== 'overwrite') {
+      try {
+        const exists = await client.exists(key);
+        if (exists) {
+          if (options.conflictStrategy === 'abort') {
+            result.errors.push(`Key "${key}" already exists — import aborted`);
+            break;
+          }
+          result.skipped++;
+          options.onProgress?.(result.imported + result.skipped, total);
+          continue;
+        }
+      } catch {
+        // proceed
+      }
+    }
+
+    try {
+      const dumpBuffer = Buffer.from(dumpBase64, 'base64');
+      const restoreArgs: (string | number | Buffer)[] = [key, ttl > 0 ? ttl * 1000 : 0, dumpBuffer];
+      if (options.conflictStrategy === 'overwrite') {
+        restoreArgs.push('REPLACE');
+      }
+      await (client as unknown as { call: (cmd: string, ...args: unknown[]) => Promise<unknown> }).call(
+        'RESTORE', ...restoreArgs
+      );
+      result.imported++;
+    } catch (err) {
+      result.failed++;
+      result.errors.push(`RESTORE ${key}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    options.onProgress?.(result.imported + result.skipped, total);
+  }
+
+  return result;
+}
