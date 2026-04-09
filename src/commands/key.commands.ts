@@ -240,6 +240,7 @@ export function registerKeyCommands(
       try {
         const keyService = new KeyService(client);
         await keyService.setTTL(item.keyInfo.key, newTTL);
+        keyEditorProvider.notifyTTLChanged(item.connectionId, item.keyInfo.key, newTTL);
       } catch (err) {
         keyTreeProvider.updateItemTTL(item, previousTTL);
         vscode.window.showErrorMessage(
