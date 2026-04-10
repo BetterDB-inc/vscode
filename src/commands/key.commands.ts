@@ -215,6 +215,7 @@ export function registerKeyCommands(
     ,
 
     vscode.commands.registerCommand(COMMANDS.EDIT_TTL, async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
       const client = connectionManager.getClient(item.connectionId);
       if (!client) {
         vscode.window.showErrorMessage('Not connected to database');
@@ -283,6 +284,7 @@ export function registerKeyCommands(
     ,
 
     vscode.commands.registerCommand(COMMANDS.EDIT_KEY, async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
       const choice = await vscode.window.showQuickPick(
         [
           { label: '$(edit) Edit TTL...', command: COMMANDS.EDIT_TTL },
