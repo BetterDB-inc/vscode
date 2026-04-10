@@ -268,10 +268,22 @@ export function registerKeyCommands(
 
       if (newName === undefined || newName === item.keyInfo.key) return;
 
+      const keyService = new KeyService(client);
+
+      const destinationExists = await keyService.keyExists(newName);
+      if (destinationExists) {
+        const overwrite = await vscode.window.showWarningMessage(
+          `Key "${newName}" already exists. Overwrite?`,
+          { modal: true },
+          'Overwrite'
+        );
+        if (overwrite !== 'Overwrite') return;
+      }
+
       try {
-        const keyService = new KeyService(client);
         await keyService.renameKey(item.keyInfo.key, newName);
         keyEditorProvider.closePanel(item.connectionId, item.keyInfo.key);
+        keyEditorProvider.closePanel(item.connectionId, newName);
         keyTreeProvider.refresh();
         await keyEditorProvider.openKeyEditor(keyService, item.connectionId, newName);
         vscode.window.showInformationMessage(`Key renamed to "${newName}"`);
