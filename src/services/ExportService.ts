@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import Valkey from 'iovalkey';
 import { KeyService } from './KeyService';
+import { KeyValue } from '../models/key.model';
 
 function escapeValue(str: string): string {
   return str
@@ -161,15 +162,16 @@ export async function exportKeys(
   return { exported };
 }
 
-function extractValueForSerialization(keyValue: { type: string; value: { type: string } & Record<string, unknown> }): unknown {
-  switch (keyValue.type) {
-    case 'string': return (keyValue.value as { value: string }).value;
-    case 'hash': return (keyValue.value as { fields: unknown }).fields;
-    case 'list': return (keyValue.value as { elements: unknown }).elements;
-    case 'set': return (keyValue.value as { members: unknown }).members;
-    case 'zset': return (keyValue.value as { members: unknown }).members;
-    case 'stream': return (keyValue.value as { entries: unknown }).entries;
-    case 'json': return (keyValue.value as { value: string }).value;
+function extractValueForSerialization(keyValue: KeyValue): unknown {
+  const v = keyValue.value;
+  switch (v.type) {
+    case 'string': return v.value;
+    case 'hash': return v.fields;
+    case 'list': return v.elements;
+    case 'set': return v.members;
+    case 'zset': return v.members;
+    case 'stream': return v.entries;
+    case 'json': return v.value;
     default: return '';
   }
 }
