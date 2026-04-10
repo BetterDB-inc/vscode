@@ -107,7 +107,7 @@ export async function exportKeys(
         if (options.cancellationToken?.isCancellationRequested) break;
 
         const key = keys[i];
-        const keyValue = await keyService.getValue(key);
+        const keyValue = await keyService.getCompleteValue(key);
         if (!keyValue) continue;
 
         const valueData = extractValueForSerialization(keyValue);

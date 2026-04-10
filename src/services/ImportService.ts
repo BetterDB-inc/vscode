@@ -101,11 +101,14 @@ async function importText(
     crlfDelay: Infinity,
   });
 
+  const call = (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call.bind(client);
+  const keyState = new Map<string, 'imported' | 'skipped' | 'failed'>();
   let total = 0;
-  const skippedKeys = new Set<string>();
+  let aborted = false;
 
   for await (const line of rl) {
     if (options.cancellationToken?.isCancellationRequested) break;
+    if (aborted) break;
 
     const parsed = parseCommand(line);
     if (!parsed) {
@@ -119,46 +122,74 @@ async function importText(
     }
 
     const { command, args } = parsed;
+    const key = args[0];
 
     if (command === 'EXPIRE' && args.length === 2) {
-      if (skippedKeys.has(args[0])) continue;
+      if (keyState.get(key) !== 'imported') continue;
       try {
-        await (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call('EXPIRE', args[0], args[1]);
+        await call('EXPIRE', args[0], args[1]);
       } catch (err) {
-        result.errors.push(`EXPIRE ${args[0]}: ${err instanceof Error ? err.message : String(err)}`);
+        result.errors.push(`EXPIRE ${key}: ${err instanceof Error ? err.message : String(err)}`);
       }
       continue;
     }
 
-    // For data commands, check conflict
-    const key = args[0];
-    if (options.conflictStrategy !== 'overwrite') {
+    const existingState = keyState.get(key);
+
+    if (existingState === 'skipped' || existingState === 'failed') {
+      continue;
+    }
+
+    if (existingState === 'imported') {
       try {
-        const exists = await client.exists(key);
-        if (exists) {
-          if (options.conflictStrategy === 'abort') {
-            result.errors.push(`Key "${key}" already exists — import aborted`);
-            break;
-          }
-          result.skipped++;
-          skippedKeys.add(key);
-          options.onProgress?.(result.imported + result.skipped, total);
-          continue;
-        }
-      } catch {
-        // If EXISTS fails, proceed with import
+        await call(command, ...args);
+      } catch (err) {
+        result.errors.push(`${command} ${key}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      continue;
+    }
+
+    let keyExists = false;
+    try {
+      keyExists = (await client.exists(key)) === 1;
+    } catch {
+      // treat as non-existing
+    }
+
+    if (keyExists) {
+      if (options.conflictStrategy === 'abort') {
+        result.errors.push(`Key "${key}" already exists — import aborted`);
+        aborted = true;
+        break;
+      }
+      if (options.conflictStrategy === 'skip') {
+        keyState.set(key, 'skipped');
+        result.skipped++;
+        options.onProgress?.(result.imported + result.skipped + result.failed, total);
+        continue;
+      }
+      try {
+        await client.del(key);
+      } catch (err) {
+        keyState.set(key, 'failed');
+        result.failed++;
+        result.errors.push(`DEL ${key}: ${err instanceof Error ? err.message : String(err)}`);
+        options.onProgress?.(result.imported + result.skipped + result.failed, total);
+        continue;
       }
     }
 
     try {
-      await (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call(command, ...args);
+      await call(command, ...args);
+      keyState.set(key, 'imported');
       result.imported++;
     } catch (err) {
+      keyState.set(key, 'failed');
       result.failed++;
       result.errors.push(`${command} ${key}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    options.onProgress?.(result.imported + result.skipped, total);
+    options.onProgress?.(result.imported + result.skipped + result.failed, total);
   }
 
   return result;

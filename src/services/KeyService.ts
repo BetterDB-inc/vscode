@@ -220,6 +220,105 @@ export class KeyService {
     }
   }
 
+  async getCompleteValue(key: string): Promise<KeyValue | null> {
+    const type = await this.client.type(key);
+    if (type === 'none') {
+      return null;
+    }
+
+    const ttl = await this.client.ttl(key);
+
+    switch (type) {
+      case 'string':
+        return {
+          key,
+          type: 'string',
+          ttl,
+          value: { type: 'string', value: (await this.client.get(key)) || '' },
+        };
+
+      case 'hash': {
+        const hashData = await this.client.hgetall(key);
+        const fields = Object.entries(hashData).map(([field, value]) => ({ field, value }));
+        return {
+          key,
+          type: 'hash',
+          ttl,
+          value: { type: 'hash', fields, total: fields.length },
+        };
+      }
+
+      case 'list': {
+        const elements = await this.client.lrange(key, 0, -1);
+        return {
+          key,
+          type: 'list',
+          ttl,
+          value: { type: 'list', elements, total: elements.length },
+        };
+      }
+
+      case 'set': {
+        const members = await this.client.smembers(key);
+        return {
+          key,
+          type: 'set',
+          ttl,
+          value: { type: 'set', members, total: members.length },
+        };
+      }
+
+      case 'zset': {
+        const raw = await this.client.zrange(key, 0, -1, 'WITHSCORES');
+        const members: Array<{ member: string; score: number }> = [];
+        for (let i = 0; i < raw.length; i += 2) {
+          members.push({ member: raw[i], score: parseFloat(raw[i + 1]) });
+        }
+        return {
+          key,
+          type: 'zset',
+          ttl,
+          value: { type: 'zset', members, total: members.length },
+        };
+      }
+
+      case 'stream': {
+        const streamEntries = await this.client.xrange(key, '-', '+');
+        return {
+          key,
+          type: 'stream',
+          ttl,
+          value: {
+            type: 'stream',
+            entries: streamEntries.map(([id, fields]) => ({
+              id,
+              fields: arrayToObject(fields as string[]),
+            })),
+            length: streamEntries.length,
+          },
+        };
+      }
+
+      case 'ReJSON-RL': {
+        const jsonValue = await this.getJson(key);
+        return {
+          key,
+          type: 'json',
+          ttl,
+          value: { type: 'json', value: jsonValue || '{}' },
+        };
+      }
+
+      default:
+        return {
+          key,
+          type: 'unknown',
+          ttl,
+          value: { type: 'string', value: '[Unknown type]' },
+        };
+    }
+  }
+
   async setString(key: string, value: string, ttl?: number): Promise<void> {
     if (ttl && ttl > 0) {
       await this.client.set(key, value, 'EX', ttl);
