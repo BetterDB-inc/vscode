@@ -96,8 +96,9 @@ export async function exportKeys(
   let exported = 0;
 
   const stream = fs.createWriteStream(options.filePath, { encoding: 'utf-8' });
-  const streamError = new Promise<never>((_, reject) => {
-    stream.on('error', reject);
+  let streamErr: Error | null = null;
+  stream.on('error', (err) => {
+    streamErr = err;
   });
 
   try {
@@ -113,6 +114,7 @@ export async function exportKeys(
       // via DUMP/RESTORE — that path works for any server-side type.
       for (let i = 0; i < total; i++) {
         if (options.cancellationToken?.isCancellationRequested) break;
+        if (streamErr) break;
 
         const key = keys[i];
         const keyValue = await keyService.getCompleteValue(key);
@@ -144,6 +146,7 @@ export async function exportKeys(
 
       for (let i = 0; i < total; i++) {
         if (options.cancellationToken?.isCancellationRequested) break;
+        if (streamErr) break;
 
         const key = keys[i];
         const [ttl, dump] = await Promise.all([
@@ -165,10 +168,17 @@ export async function exportKeys(
       }
     }
   } finally {
-    await Promise.race([
-      new Promise<void>((resolve) => stream.end(() => resolve())),
-      streamError,
-    ]).catch(() => {});
+    await new Promise<void>((resolve, reject) => {
+      stream.end((err?: Error | null) => {
+        if (err) reject(err);
+        else if (streamErr) reject(streamErr);
+        else resolve();
+      });
+    });
+  }
+
+  if (streamErr) {
+    throw streamErr;
   }
 
   return { exported };

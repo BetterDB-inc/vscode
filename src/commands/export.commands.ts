@@ -72,28 +72,36 @@ export function registerExportCommands(
 
       if (!uri) return;
 
-      const exportResult = await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Exporting keys...',
-          cancellable: true,
-        },
-        async (progress, token) => {
-          return exportKeys(client, {
-            keys: keysToExport,
-            pattern,
-            format: format.value,
-            filePath: uri.fsPath,
-            onProgress: (exported, total) => {
-              progress.report({
-                message: `${exported} / ${total} keys`,
-                increment: (1 / total) * 100,
-              });
-            },
-            cancellationToken: token,
-          });
-        }
-      );
+      let exportResult: { exported: number };
+      try {
+        exportResult = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Exporting keys...',
+            cancellable: true,
+          },
+          async (progress, token) => {
+            return exportKeys(client, {
+              keys: keysToExport,
+              pattern,
+              format: format.value,
+              filePath: uri.fsPath,
+              onProgress: (exported, total) => {
+                progress.report({
+                  message: `${exported} / ${total} keys`,
+                  increment: (1 / total) * 100,
+                });
+              },
+              cancellationToken: token,
+            });
+          }
+        );
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Export failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return;
+      }
 
       const openAction = await vscode.window.showInformationMessage(
         `Exported ${exportResult.exported} keys to ${uri.fsPath}`,

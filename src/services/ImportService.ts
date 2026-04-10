@@ -252,7 +252,7 @@ async function importBinary(
             break;
           }
           result.skipped++;
-          options.onProgress?.(result.imported + result.skipped, total);
+          options.onProgress?.(result.imported + result.skipped + result.failed, total);
           continue;
         }
       } catch {
