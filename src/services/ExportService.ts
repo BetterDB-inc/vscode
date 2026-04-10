@@ -104,12 +104,24 @@ export async function exportKeys(
     if (options.format === 'text') {
       stream.write(`# BetterDB Export | ${options.pattern} | ${new Date().toISOString()} | ${total} keys\n`);
 
+      // TODO: extend text-format support to module-backed key types.
+      // Currently only the 7 core types plus RedisJSON are serialized as
+      // commands. Unknown types (RedisBloom filters: MBbloom--/MBbloomCF,
+      // Count-Min Sketch, Top-K, t-digest; RedisTimeSeries: TSDB-TYPE;
+      // Valkey 8+ vector sets: vectorset; legacy RedisGraph: graphdata)
+      // are skipped here. Use the binary (RDB) format to round-trip them
+      // via DUMP/RESTORE — that path works for any server-side type.
       for (let i = 0; i < total; i++) {
         if (options.cancellationToken?.isCancellationRequested) break;
 
         const key = keys[i];
         const keyValue = await keyService.getCompleteValue(key);
         if (!keyValue) continue;
+
+        if (keyValue.type === 'unknown') {
+          console.warn(`[BetterDB export] Skipping key "${key}": unsupported type for plain-text export. Use binary (RDB) format instead.`);
+          continue;
+        }
 
         const valueData = extractValueForSerialization(keyValue);
         const commands = serializeKeyAsCommands(key, keyValue.type, valueData, keyValue.ttl);
