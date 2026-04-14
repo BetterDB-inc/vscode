@@ -110,6 +110,13 @@
   border-color: var(--vscode-focusBorder);
 }
 
+.editorWrap :global(.monaco-editor),
+.editorWrap :global(.monaco-editor-background),
+.editorWrap :global(.monaco-editor .overflow-guard),
+.editorWrap :global(.monaco-editor .margin) {
+  background-color: var(--vscode-editor-background) !important;
+}
+
 .editorWrapDisabled {
   opacity: 0.6;
 }

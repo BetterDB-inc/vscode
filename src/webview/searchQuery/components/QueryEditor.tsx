@@ -23,14 +23,23 @@ function getBaseTheme(): 'vs' | 'vs-dark' | 'hc-black' {
   return 'vs-dark';
 }
 
-function getCssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function rgbToHex(r: number, g: number, b: number): string {
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function getCssVarAsHex(name: string, fallback: string): string {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!raw) return fallback;
+  if (raw.startsWith('#')) return raw;
+  const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (match) return rgbToHex(+match[1], +match[2], +match[3]);
+  return fallback;
 }
 
 function defineVscodeTheme(): void {
-  const bg = getCssVar('--vscode-editor-background') || '#1e1e1e';
-  const fg = getCssVar('--vscode-editor-foreground') || '#d4d4d4';
-  const selectionBg = getCssVar('--vscode-editor-selectionBackground') || '#264f78';
+  const bg = getCssVarAsHex('--vscode-editor-background', '#1e1e1e');
+  const fg = getCssVarAsHex('--vscode-editor-foreground', '#d4d4d4');
+  const selectionBg = getCssVarAsHex('--vscode-editor-selectionBackground', '#264f78');
 
   monaco.editor.defineTheme('vscode-match', {
     base: getBaseTheme(),
