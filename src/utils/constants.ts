@@ -55,4 +55,5 @@ export const COMMANDS = {
   EDIT_KEY: 'betterdb.editKey',
   EXPORT_KEYS: 'betterdb.exportKeys',
   IMPORT_KEYS: 'betterdb.importKeys',
+  OPEN_SEARCH_QUERY: 'betterdb.openSearchQuery',
 } as const;

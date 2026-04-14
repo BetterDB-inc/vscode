@@ -186,6 +186,12 @@
         "title": "Import Keys...",
         "icon": "$(git-stash-pop)",
         "category": "BetterDB"
+      },
+      {
+        "command": "betterdb.openSearchQuery",
+        "title": "Open Search Query Runner",
+        "icon": "$(search)",
+        "category": "BetterDB"
       }
     ],
     "viewsWelcome": [
@@ -239,6 +245,10 @@
         {
           "command": "betterdb.editKey",
           "when": "false"
+        },
+        {
+          "command": "betterdb.openSearchQuery",
+          "when": "false"
         }
       ],
       "view/title": [
@@ -274,6 +284,11 @@
         },
         {
           "command": "betterdb.refreshSearch",
+          "when": "view == betterdb-search",
+          "group": "navigation"
+        },
+        {
+          "command": "betterdb.openSearchQuery",
           "when": "view == betterdb-search",
           "group": "navigation"
         },
@@ -324,6 +339,10 @@
         {
           "command": "betterdb.deleteKey",
           "when": "viewItem =~ /^key-/"
+        },
+        {
+          "command": "betterdb.openSearchQuery",
+          "when": "viewItem == search-index"
         }
       ]
     }
