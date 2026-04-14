@@ -71,7 +71,7 @@ export class SearchQueryProvider implements vscode.Disposable {
         case 'executeQuery': {
           try {
             const result = await executeSearchQuery(client, {
-              command: msg.command,
+              command: 'FT.SEARCH',
               index: msg.index ?? '',
               query: msg.query ?? ''
             });
