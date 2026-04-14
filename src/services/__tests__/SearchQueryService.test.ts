@@ -36,6 +36,13 @@ describe('parseSearchResponse', () => {
     expect(results).toHaveLength(1);
     expect(results[0]).toEqual({ key: 'user:1', fields: {} });
   });
+
+  it('handles string-encoded total count', () => {
+    const raw = ['1', 'user:1', ['name', 'Alice']];
+    const results = parseSearchResponse(raw as unknown[]);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({ key: 'user:1', fields: { name: 'Alice' } });
+  });
 });
 
 describe('deduplicateHistory', () => {
