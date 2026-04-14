@@ -351,7 +351,7 @@
     "vscode:prepublish": "npm run build",
     "build": "npm run build:extension && npm run build:webview && npm run build:stats",
     "build:extension": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --loader:.node=file --format=cjs --platform=node",
-    "build:webview": "esbuild ./src/webview/keyEditor/index.tsx --bundle --outfile=dist/webview/keyEditor.js --format=iife --platform=browser --loader:.module.css=local-css --loader:.ttf=file --target=es2020",
+    "build:webview": "esbuild ./src/webview/keyEditor/index.tsx --bundle --outfile=dist/webview/keyEditor.js --format=iife --platform=browser --loader:.module.css=local-css --loader:.ttf=file --target=es2020 && esbuild ./src/webview/searchQuery/index.tsx --bundle --outfile=dist/webview/searchQuery.js --format=iife --platform=browser --loader:.module.css=local-css --loader:.ttf=file --target=es2020",
     "build:stats": "cp ./src/webview/statsView/stats.css ./dist/webview/stats.css",
     "watch": "npm run watch:extension & npm run watch:webview",
     "watch:extension": "npm run build:extension -- --watch",
