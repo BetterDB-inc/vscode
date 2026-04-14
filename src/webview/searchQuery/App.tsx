@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { FtIndexInfo } from '../../shared/types';
 import { ExtensionMessage, InitialData, SearchResult } from './types';
 import { useVsCode } from './VsCodeContext';
@@ -24,6 +24,7 @@ export const App: React.FC<Props> = ({ initialData }) => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(true);
+  const pendingQueryRef = useRef<string>('');
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -40,6 +41,9 @@ export const App: React.FC<Props> = ({ initialData }) => {
           setTookMs(msg.tookMs);
           setError(msg.error ?? null);
           setLoading(false);
+          if (!msg.error) {
+            vscode.postMessage({ command: 'saveHistory', query: pendingQueryRef.current });
+          }
           break;
         case 'connectionLost':
           setConnected(false);
@@ -59,8 +63,8 @@ export const App: React.FC<Props> = ({ initialData }) => {
     }
     setLoading(true);
     setError(null);
+    pendingQueryRef.current = query.trim();
     vscode.postMessage({ command: 'executeQuery', index: selectedIndex, query: query.trim() });
-    vscode.postMessage({ command: 'saveHistory', query: query.trim() });
   };
 
   const handleKeyClick = (key: string) => {

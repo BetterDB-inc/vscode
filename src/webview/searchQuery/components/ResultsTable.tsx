@@ -54,7 +54,7 @@ export const ResultsTable: React.FC<Props> = ({ results, total, tookMs, onKeyCli
           <tbody>
             {results.map((result, i) => (
               <tr
-                key={i}
+                key={result.key}
                 style={{ background: i % 2 === 0 ? 'transparent' : 'var(--vscode-list-hoverBackground)' }}
               >
                 <td style={tdStyle}>

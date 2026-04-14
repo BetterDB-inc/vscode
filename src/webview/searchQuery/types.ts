@@ -5,17 +5,13 @@ export interface SearchResult {
   fields: Record<string, string>;
 }
 
-export interface InitialData {
-  indexes: FtIndexInfo[];
-  selectedIndex: string | null;
-  history: string[];
-}
-
 export type ExtensionMessage =
   | { command: 'init'; indexes: FtIndexInfo[]; selectedIndex: string | null; history: string[] }
   | { command: 'queryResult'; results: SearchResult[]; total: number; tookMs: number; error?: string }
   | { command: 'connectionLost' }
   | { command: 'selectIndex'; indexName: string };
+
+export type InitialData = Omit<Extract<ExtensionMessage, { command: 'init' }>, 'command'>;
 
 export type WebviewMessage =
   | { command: 'executeQuery'; index: string; query: string }

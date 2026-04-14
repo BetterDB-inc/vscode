@@ -1,5 +1,5 @@
-import React from 'react';
-import MonacoEditor, { OnMount } from '@monaco-editor/react';
+import React, { useRef, useEffect } from 'react';
+import MonacoEditor, { type OnMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 
 interface Props {
@@ -9,11 +9,21 @@ interface Props {
   disabled?: boolean;
 }
 
+function getMonacoTheme(): string {
+  const kind = document.body.getAttribute('data-vscode-theme-kind');
+  if (kind === 'vscode-light') return 'vs';
+  if (kind === 'vscode-high-contrast') return 'hc-black';
+  return 'vs-dark';
+}
+
 export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled }) => {
+  const onRunRef = useRef(onRun);
+  useEffect(() => { onRunRef.current = onRun; }, [onRun]);
+
   const handleMount: OnMount = (editor) => {
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-      onRun
+      () => onRunRef.current()
     );
   };
 
@@ -43,7 +53,7 @@ export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled 
           renderLineHighlight: 'none',
           scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
         }}
-        theme="vs-dark"
+        theme={getMonacoTheme()}
       />
     </div>
   );
