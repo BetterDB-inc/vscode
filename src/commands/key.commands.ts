@@ -4,6 +4,8 @@ import { KeyService } from '../services/KeyService';
 import { KeyTreeProvider, KeyTreeItem } from '../providers/KeyTreeProvider';
 import { KeyEditorProvider } from '../providers/KeyEditorProvider';
 import { SearchTreeProvider } from '../providers/SearchTreeProvider';
+import { COMMANDS } from '../utils/constants';
+import { validateTTLInput } from '../utils/validators';
 
 export function registerKeyCommands(
   context: vscode.ExtensionContext,
@@ -51,6 +53,7 @@ export function registerKeyCommands(
     ),
 
     vscode.commands.registerCommand('betterdb.deleteKey', async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
       const confirm = await vscode.window.showWarningMessage(
         `Delete key "${item.keyInfo.key}"?`,
         { modal: true },
@@ -207,6 +210,103 @@ export function registerKeyCommands(
         vscode.window.showErrorMessage(
           `Failed to create key: ${err instanceof Error ? err.message : 'Unknown error'}`
         );
+      }
+    })
+    ,
+
+    vscode.commands.registerCommand(COMMANDS.EDIT_TTL, async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
+      const client = connectionManager.getClient(item.connectionId);
+      if (!client) {
+        vscode.window.showErrorMessage('Not connected to database');
+        return;
+      }
+
+      const currentTTL = item.keyInfo.ttl;
+      const input = await vscode.window.showInputBox({
+        prompt: 'Enter TTL in seconds (-1 to remove expiry)',
+        value: currentTTL > 0 ? String(currentTTL) : '',
+        validateInput: (value) => {
+          const result = validateTTLInput(value);
+          return result.valid ? null : result.error!;
+        },
+      });
+
+      if (input === undefined) return;
+
+      const newTTL = parseInt(input, 10);
+      const previousTTL = currentTTL;
+
+      keyTreeProvider.updateItemTTL(item, newTTL);
+
+      try {
+        const keyService = new KeyService(client);
+        await keyService.setTTL(item.keyInfo.key, newTTL);
+        keyEditorProvider.notifyTTLChanged(item.connectionId, item.keyInfo.key, newTTL);
+      } catch (err) {
+        keyTreeProvider.updateItemTTL(item, previousTTL);
+        vscode.window.showErrorMessage(
+          `Failed to set TTL: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+      }
+    })
+    ,
+
+    vscode.commands.registerCommand(COMMANDS.RENAME_KEY, async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
+      const client = connectionManager.getClient(item.connectionId);
+      if (!client) {
+        vscode.window.showErrorMessage('Not connected to database');
+        return;
+      }
+
+      const newName = await vscode.window.showInputBox({
+        prompt: 'Enter new key name',
+        value: item.keyInfo.key,
+        validateInput: (value) => value.trim() ? null : 'Key name is required',
+      });
+
+      if (newName === undefined || newName === item.keyInfo.key) return;
+
+      const keyService = new KeyService(client);
+
+      const destinationExists = await keyService.keyExists(newName);
+      if (destinationExists) {
+        const overwrite = await vscode.window.showWarningMessage(
+          `Key "${newName}" already exists. Overwrite?`,
+          { modal: true },
+          'Overwrite'
+        );
+        if (overwrite !== 'Overwrite') return;
+      }
+
+      try {
+        await keyService.renameKey(item.keyInfo.key, newName);
+        keyEditorProvider.closePanel(item.connectionId, item.keyInfo.key);
+        keyEditorProvider.closePanel(item.connectionId, newName);
+        keyTreeProvider.refresh();
+        await keyEditorProvider.openKeyEditor(keyService, item.connectionId, newName);
+        vscode.window.showInformationMessage(`Key renamed to "${newName}"`);
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Failed to rename key: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+      }
+    })
+    ,
+
+    vscode.commands.registerCommand(COMMANDS.EDIT_KEY, async (item: KeyTreeItem) => {
+      if (!item?.keyInfo || item.contextValue === 'key-placeholder') return;
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: '$(edit) Edit TTL...', command: COMMANDS.EDIT_TTL },
+          { label: '$(symbol-key) Rename Key...', command: COMMANDS.RENAME_KEY },
+        ],
+        { placeHolder: `Edit "${item.keyInfo.key}"` }
+      );
+
+      if (choice) {
+        vscode.commands.executeCommand(choice.command, item);
       }
     })
   );

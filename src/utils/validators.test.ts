@@ -5,6 +5,7 @@ import {
   validateConnectionName,
   validateHost,
   validateConnectionConfig,
+  validateTTLInput,
 } from './validators';
 
 describe('validatePort', () => {
@@ -169,5 +170,35 @@ describe('validateConnectionConfig', () => {
     });
     expect(result.valid).toBe(false);
     expect(result.error).toContain('Database index');
+  });
+});
+
+describe('validateTTLInput', () => {
+  it('accepts positive integers', () => {
+    expect(validateTTLInput('1')).toEqual({ valid: true });
+    expect(validateTTLInput('3600')).toEqual({ valid: true });
+    expect(validateTTLInput('86400')).toEqual({ valid: true });
+  });
+
+  it('accepts -1 to remove expiry', () => {
+    expect(validateTTLInput('-1')).toEqual({ valid: true });
+  });
+
+  it('rejects 0 with helpful message', () => {
+    const result = validateTTLInput('0');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe('0 would delete the key. Use -1 to remove expiry.');
+  });
+
+  it('rejects non-integer input', () => {
+    expect(validateTTLInput('abc').valid).toBe(false);
+    expect(validateTTLInput('').valid).toBe(false);
+    expect(validateTTLInput('3.5').valid).toBe(false);
+    expect(validateTTLInput(' ').valid).toBe(false);
+  });
+
+  it('rejects values less than -1', () => {
+    expect(validateTTLInput('-2').valid).toBe(false);
+    expect(validateTTLInput('-100').valid).toBe(false);
   });
 });

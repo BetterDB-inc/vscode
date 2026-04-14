@@ -60,3 +60,17 @@ export function validateConnectionConfig(config: {
 
   return { valid: true };
 }
+
+export function validateTTLInput(value: string): ValidationResult {
+  const ttl = parseInt(value, 10);
+  if (isNaN(ttl) || String(ttl) !== value.trim()) {
+    return { valid: false, error: 'TTL must be an integer' };
+  }
+  if (ttl === 0) {
+    return { valid: false, error: '0 would delete the key. Use -1 to remove expiry.' };
+  }
+  if (ttl < -1) {
+    return { valid: false, error: 'TTL must be -1 (no expiry) or a positive number of seconds' };
+  }
+  return { valid: true };
+}

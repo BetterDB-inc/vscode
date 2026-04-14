@@ -26,6 +26,8 @@ export const App: React.FC<AppProps> = ({ initialData }) => {
         setJsonEditMode(false);
         setJsonValue('');
         setJsonError(null);
+      } else if (message.command === 'ttlUpdate') {
+        setData((prev) => prev ? { ...prev, ttl: message.ttl } : prev);
       }
     };
 

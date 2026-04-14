@@ -50,6 +50,13 @@ export class KeyTreeProvider implements vscode.TreeDataProvider<KeyTreeItem> {
     this._onDidChangeTreeData.fire(undefined);
   }
 
+  updateItemTTL(item: KeyTreeItem, newTTL: number): void {
+    item.keyInfo.ttl = newTTL;
+    item.description = buildKeyDescription(item.keyInfo);
+    item.tooltip = buildKeyTooltip(item.keyInfo);
+    this._onDidChangeTreeData.fire(item);
+  }
+
   clear(): void {
     if (this.keyService) {
       this.keyService.cancelScan();
@@ -181,19 +188,8 @@ export class KeyTreeItem extends vscode.TreeItem {
     }
 
     this.iconPath = new vscode.ThemeIcon(TYPE_ICONS[keyInfo.type] || 'key');
-
-    const ttlText = keyInfo.ttl > 0 ? ` (TTL: ${formatTTL(keyInfo.ttl)})` : '';
-    this.description = `${keyInfo.type}${ttlText}`;
-
-    const sizeText = keyInfo.size ? `\nSize: ${formatBytes(keyInfo.size)}` : '';
-    const encodingText = keyInfo.encoding ? `\nEncoding: ${keyInfo.encoding}` : '';
-
-    this.tooltip = new vscode.MarkdownString(
-      `**${this.escapeMarkdown(keyInfo.key)}**\n\n` +
-      `Type: \`${keyInfo.type}\`\n\n` +
-      `TTL: ${formatTTL(keyInfo.ttl)}${sizeText}${encodingText}`
-    );
-
+    this.description = buildKeyDescription(keyInfo);
+    this.tooltip = buildKeyTooltip(keyInfo);
     this.contextValue = `key-${keyInfo.type}`;
 
     this.command = {
@@ -203,7 +199,23 @@ export class KeyTreeItem extends vscode.TreeItem {
     };
   }
 
-  private escapeMarkdown(text: string): string {
-    return text.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1');
-  }
+}
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/([\\`*_{}[\]()#+\-.!])/g, '\\$1');
+}
+
+function buildKeyDescription(keyInfo: KeyInfo): string {
+  const ttlText = keyInfo.ttl > 0 ? ` (TTL: ${formatTTL(keyInfo.ttl)})` : '';
+  return `${keyInfo.type}${ttlText}`;
+}
+
+function buildKeyTooltip(keyInfo: KeyInfo): vscode.MarkdownString {
+  const sizeText = keyInfo.size ? `\nSize: ${formatBytes(keyInfo.size)}` : '';
+  const encodingText = keyInfo.encoding ? `\nEncoding: ${keyInfo.encoding}` : '';
+  return new vscode.MarkdownString(
+    `**${escapeMarkdown(keyInfo.key)}**\n\n` +
+    `Type: \`${keyInfo.type}\`\n\n` +
+    `TTL: ${formatTTL(keyInfo.ttl)}${sizeText}${encodingText}`
+  );
 }
