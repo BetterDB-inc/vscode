@@ -203,7 +203,7 @@ export class StatsViewProvider implements vscode.WebviewViewProvider {
     <div class="promo">
       <div class="promo-title">Need deeper insights?</div>
       <div class="promo-text">
-        Check out <a href="https://betterdb.com">BetterDB</a> for advanced monitoring,
+        Check out <a href="https://betterdb.com?utm_source=vscode&utm_medium=extension&utm_campaign=betterdb">BetterDB</a> for advanced monitoring,
         alerts, and performance analytics.
       </div>
     </div>
