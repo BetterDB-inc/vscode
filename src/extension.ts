@@ -37,6 +37,8 @@ export function activate(context: vscode.ExtensionContext): void {
     statsViewProvider.setClient(client ?? null);
   };
 
+  const connectedIds = new Set<string>();
+
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('betterdb-connections', connectionTreeProvider),
     vscode.window.registerTreeDataProvider('betterdb-keys', keyTreeProvider),
@@ -59,8 +61,15 @@ export function activate(context: vscode.ExtensionContext): void {
       updateStatsClient();
       const configs = await connectionManager.loadConnections();
       for (const config of configs) {
-        if (!connectionManager.isConnected(config.id)) {
+        const wasConnected = connectedIds.has(config.id);
+        const nowConnected = connectionManager.isConnected(config.id);
+        if (wasConnected && !nowConnected) {
           searchQueryProvider.notifyConnectionLost(config.id);
+        }
+        if (nowConnected) {
+          connectedIds.add(config.id);
+        } else {
+          connectedIds.delete(config.id);
         }
       }
     })

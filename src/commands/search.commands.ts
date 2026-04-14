@@ -19,16 +19,6 @@ export function registerSearchCommands(
           return;
         }
 
-        if (arg instanceof SearchTreeProvider) {
-          const connectionId = arg.getActiveConnectionId();
-          if (!connectionId) {
-            vscode.window.showWarningMessage('Please connect to a database first');
-            return;
-          }
-          await searchQueryProvider.openOrReveal(connectionId);
-          return;
-        }
-
         const connectionId = searchTreeProvider.getActiveConnectionId();
         if (!connectionId) {
           vscode.window.showWarningMessage('Please connect to a database first');
