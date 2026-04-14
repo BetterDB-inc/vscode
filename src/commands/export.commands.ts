@@ -1,10 +1,14 @@
 import * as vscode from 'vscode';
+import * as os from 'os';
+import * as path from 'path';
 import { ConnectionManager } from '../services/ConnectionManager';
 import { KeyService } from '../services/KeyService';
 import { KeyTreeProvider } from '../providers/KeyTreeProvider';
 import { exportKeys } from '../services/ExportService';
 import { importKeys, ConflictStrategy } from '../services/ImportService';
 import { COMMANDS } from '../utils/constants';
+
+const LAST_EXPORT_DIR_KEY = 'betterdb.lastExportDir';
 
 export function registerExportCommands(
   context: vscode.ExtensionContext,
@@ -65,14 +69,17 @@ export function registerExportCommands(
       const ext = format.value === 'text' ? 'txt' : 'rdb';
       const connName = connectionManager.getState(connectionId)?.config?.name ?? connectionId;
       const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/[_-]+$/, '');
+      const fileName = `${sanitize(connName)}-${sanitize(pattern)}.${ext}`;
+      const lastDir = context.globalState.get<string>(LAST_EXPORT_DIR_KEY) ?? os.homedir();
       const uri = await vscode.window.showSaveDialog({
-        defaultUri: vscode.Uri.file(`${sanitize(connName)}-${sanitize(pattern)}.${ext}`),
+        defaultUri: vscode.Uri.file(path.join(lastDir, fileName)),
         filters: format.value === 'text'
           ? { 'Plain Text Export': ['txt'] }
           : { 'Binary RDB Export': ['rdb'] },
       });
 
       if (!uri) return;
+      await context.globalState.update(LAST_EXPORT_DIR_KEY, path.dirname(uri.fsPath));
 
       let exportResult: { exported: number };
       try {
@@ -135,7 +142,9 @@ export function registerExportCommands(
       }
 
       // File picker
+      const lastDir = context.globalState.get<string>(LAST_EXPORT_DIR_KEY) ?? os.homedir();
       const uris = await vscode.window.showOpenDialog({
+        defaultUri: vscode.Uri.file(lastDir),
         canSelectMany: false,
         filters: { 'BetterDB Export Files': ['txt', 'rdb'] },
         openLabel: 'Import',
@@ -143,6 +152,7 @@ export function registerExportCommands(
 
       if (!uris || uris.length === 0) return;
       const filePath = uris[0].fsPath;
+      await context.globalState.update(LAST_EXPORT_DIR_KEY, path.dirname(filePath));
 
       // Conflict strategy
       const strategy = await vscode.window.showQuickPick(
