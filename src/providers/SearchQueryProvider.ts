@@ -3,6 +3,7 @@ import { ConnectionManager } from '../services/ConnectionManager';
 import { KeyService } from '../services/KeyService';
 import { executeSearchQuery, deduplicateHistory } from '../services/SearchQueryService';
 import { FtIndexInfo } from '../shared/types';
+import { COMMANDS } from '../utils/constants';
 
 const NONCE_LENGTH = 32;
 const NONCE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -65,8 +66,6 @@ export class SearchQueryProvider implements vscode.Disposable {
 
     panel.webview.html = this.getWebviewContent(panel.webview, indexes, indexName ?? null, history);
 
-    panel.webview.postMessage({ command: 'init', indexes, selectedIndex: indexName ?? null, history });
-
     const messageHandler = panel.webview.onDidReceiveMessage(async (msg: { command: string; index?: string; query?: string; key?: string }) => {
       switch (msg.command) {
         case 'executeQuery': {
@@ -91,7 +90,7 @@ export class SearchQueryProvider implements vscode.Disposable {
 
         case 'openKey': {
           if (msg.key) {
-            vscode.commands.executeCommand('betterdb.openKey', connectionId, msg.key);
+            vscode.commands.executeCommand(COMMANDS.OPEN_KEY, connectionId, msg.key);
           }
           break;
         }
