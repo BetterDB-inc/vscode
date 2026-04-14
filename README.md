@@ -62,6 +62,17 @@ Browse Valkey Search (FT) indexes directly in the sidebar. See index schemas, fi
 
 ![Search Indexes](resources/screenshots/indexes.png)
 
+### Import & Export
+
+Back up and migrate your data without leaving VS Code. Export keys to a plain-text command file (compatible with `valkey-cli`) or a binary RDB dump for exact replication. Import from either format with conflict handling — skip, overwrite, or abort on duplicates.
+
+- **Plain text**: human-readable commands covering all core types plus RedisJSON
+- **Binary (RDB)**: DUMP/RESTORE payloads that preserve any server-side type, including modules
+- Progress notification with cancel support
+- Default filename includes the connection name for easy identification
+
+![Export Keys](resources/screenshots/export.png)
+
 ### Integrated CLI
 
 Execute commands directly with full output formatting. Command history persists across sessions.
@@ -144,6 +155,8 @@ Access commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 | `BetterDB: Add Key` | Create a new key |
 | `BetterDB: Filter Keys` | Filter keys by pattern |
 | `BetterDB: Open CLI` | Open the integrated CLI |
+| `BetterDB: Export Keys` | Export keys to text or binary file |
+| `BetterDB: Import Keys` | Import keys from a text or binary file |
 | `BetterDB: Refresh` | Refresh the key list |
 | `BetterDB: Refresh Stats` | Refresh server stats |
 | `BetterDB: Open BetterDB Website` | Visit betterdb.com |

@@ -63,8 +63,10 @@ export function registerExportCommands(
       const keysToExport = parsedLimit < allKeys.length ? allKeys.slice(0, parsedLimit) : allKeys;
 
       const ext = format.value === 'text' ? 'txt' : 'rdb';
+      const connName = connectionManager.getState(connectionId)?.config?.name ?? connectionId;
+      const safeName = connName.replace(/[^a-zA-Z0-9_-]/g, '_');
       const uri = await vscode.window.showSaveDialog({
-        defaultUri: vscode.Uri.file(`export-${pattern.replace(/[*?]/g, '_')}.${ext}`),
+        defaultUri: vscode.Uri.file(`${safeName}-${pattern.replace(/[*?]/g, '_')}.${ext}`),
         filters: format.value === 'text'
           ? { 'Plain Text Export': ['txt'] }
           : { 'Binary RDB Export': ['rdb'] },
