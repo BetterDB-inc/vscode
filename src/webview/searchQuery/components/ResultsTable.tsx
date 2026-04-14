@@ -1,5 +1,6 @@
 import React from 'react';
 import { SearchResult } from '../types';
+import styles from '../styles.module.css';
 
 interface Props {
   results: SearchResult[];
@@ -10,16 +11,7 @@ interface Props {
 
 export const ResultsTable: React.FC<Props> = ({ results, total, tookMs, onKeyClick }) => {
   if (results.length === 0) {
-    return (
-      <div style={{
-        textAlign: 'center',
-        padding: '24px',
-        color: 'var(--vscode-editor-foreground)',
-        opacity: 0.6,
-      }}>
-        No results
-      </div>
-    );
+    return <div className={styles.noResults}>No results</div>;
   }
 
   const fieldNames = Array.from(
@@ -28,53 +20,29 @@ export const ResultsTable: React.FC<Props> = ({ results, total, tookMs, onKeyCli
 
   return (
     <div>
-      <div style={{
-        padding: '6px 0',
-        fontSize: '12px',
-        color: 'var(--vscode-editor-foreground)',
-        opacity: 0.7,
-      }}>
+      <div className={styles.resultsMeta2}>
         {total} result{total !== 1 ? 's' : ''} ({tookMs}ms)
       </div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontSize: '13px',
-          color: 'var(--vscode-editor-foreground)',
-        }}>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
           <thead>
             <tr>
-              <th style={thStyle}>Key</th>
+              <th className={styles.th}>Key</th>
               {fieldNames.map((name) => (
-                <th key={name} style={thStyle}>{name}</th>
+                <th key={name} className={styles.th}>{name}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {results.map((result, i) => (
-              <tr
-                key={result.key}
-                style={{ background: i % 2 === 0 ? 'transparent' : 'var(--vscode-list-hoverBackground)' }}
-              >
-                <td style={tdStyle}>
-                  <button
-                    onClick={() => onKeyClick(result.key)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      color: 'var(--vscode-textLink-foreground)',
-                      fontSize: '13px',
-                      textAlign: 'left',
-                    }}
-                  >
+              <tr key={result.key} className={i % 2 === 0 ? styles.trEven : styles.trOdd}>
+                <td className={styles.td}>
+                  <button className={styles.keyLink} onClick={() => onKeyClick(result.key)}>
                     {result.key}
                   </button>
                 </td>
                 {fieldNames.map((name) => (
-                  <td key={name} style={tdStyle}>{result.fields[name] ?? ''}</td>
+                  <td key={name} className={styles.td}>{result.fields[name] ?? ''}</td>
                 ))}
               </tr>
             ))}
@@ -83,22 +51,4 @@ export const ResultsTable: React.FC<Props> = ({ results, total, tookMs, onKeyCli
       </div>
     </div>
   );
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '6px 8px',
-  borderBottom: '1px solid var(--vscode-input-border)',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '5px 8px',
-  borderBottom: '1px solid var(--vscode-input-border)',
-  verticalAlign: 'top',
-  maxWidth: '300px',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
 };

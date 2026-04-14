@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import MonacoEditor, { loader, type OnMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+import styles from '../styles.module.css';
 
 loader.config({ monaco });
 
@@ -49,22 +50,16 @@ export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled 
   };
 
   return (
-    <div style={{
-      height: 'clamp(120px, 33vh, 500px)',
-      border: '1px solid var(--vscode-input-border)',
-      borderRadius: '2px',
-      overflow: 'hidden',
-      opacity: disabled ? 0.6 : 1,
-    }}>
+    <div className={`${styles.editorWrap}${disabled ? ` ${styles.editorWrapDisabled}` : ''}`}>
       <MonacoEditor
         height="100%"
         language="plaintext"
         value={value}
         onChange={(val) => onChange(val ?? '')}
         onMount={handleMount}
-        options={{
+        options={{ language: 'redis',
           minimap: { enabled: false },
-          lineNumbers: 'off',
+          lineNumbers: 'on',
           scrollBeyondLastLine: false,
           wordWrap: 'on',
           readOnly: disabled,

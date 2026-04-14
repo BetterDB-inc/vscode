@@ -6,6 +6,7 @@ import { IndexSelector } from './components/IndexSelector';
 import { QueryEditor } from './components/QueryEditor';
 import { ResultsTable } from './components/ResultsTable';
 import { QueryHistory } from './components/QueryHistory';
+import styles from './styles.module.css';
 
 interface Props {
   initialData: InitialData;
@@ -76,30 +77,14 @@ export const App: React.FC<Props> = ({ initialData }) => {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      background: 'var(--vscode-editor-background)',
-      color: 'var(--vscode-editor-foreground)',
-      fontFamily: 'var(--vscode-font-family)',
-      fontSize: '13px',
-    }}>
+    <div className={styles.container}>
       {!connected && (
-        <div style={{
-          background: 'var(--vscode-warningForeground)',
-          color: 'var(--vscode-editor-background)',
-          padding: '6px 12px',
-          textAlign: 'center',
-          fontWeight: 600,
-        }}>
-          Connection lost
-        </div>
+        <div className={styles.connectionLost}>Connection lost</div>
       )}
 
-      <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ opacity: 0.7 }}>Index:</span>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarRow}>
+          <span className={styles.indexLabel}>Index:</span>
           <IndexSelector indexes={indexes} selected={selectedIndex} onChange={setSelectedIndex} />
           <QueryHistory history={history} onSelect={handleHistorySelect} />
         </div>
@@ -111,48 +96,24 @@ export const App: React.FC<Props> = ({ initialData }) => {
           disabled={loading || !connected}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className={styles.actionRow}>
           <button
+            className={styles.runBtn}
             onClick={runQuery}
             disabled={!selectedIndex || !query.trim() || loading || !connected}
-            style={{
-              background: 'var(--vscode-button-background)',
-              color: 'var(--vscode-button-foreground)',
-              border: 'none',
-              padding: '6px 14px',
-              borderRadius: '2px',
-              cursor: (!selectedIndex || !query.trim() || loading || !connected) ? 'not-allowed' : 'pointer',
-              fontSize: '13px',
-              opacity: (!selectedIndex || !query.trim() || loading) ? 0.5 : 1,
-            }}
           >
             {loading ? 'Running…' : 'Run Query ↵'}
           </button>
           {results !== null && !error && (
-            <span style={{ opacity: 0.6, fontSize: '12px' }}>
+            <span className={styles.resultsMeta}>
               {total} result{total !== 1 ? 's' : ''}, {tookMs}ms
             </span>
           )}
         </div>
       </div>
 
-      <div style={{
-        flex: 1,
-        overflow: 'auto',
-        borderTop: '1px solid var(--vscode-input-border)',
-        padding: '8px 12px',
-      }}>
-        {error && (
-          <div style={{
-            color: 'var(--vscode-errorForeground)',
-            padding: '8px',
-            border: '1px solid var(--vscode-errorForeground)',
-            borderRadius: '2px',
-            marginBottom: '8px',
-          }}>
-            {error}
-          </div>
-        )}
+      <div className={styles.resultsArea}>
+        {error && <div className={styles.errorBox}>{error}</div>}
         {results !== null && !error && (
           <ResultsTable
             results={results}
@@ -162,7 +123,7 @@ export const App: React.FC<Props> = ({ initialData }) => {
           />
         )}
         {results === null && !error && (
-          <div style={{ textAlign: 'center', padding: '32px', opacity: 0.4 }}>
+          <div className={styles.placeholder}>
             Enter a query and press Run Query or Ctrl+Enter
           </div>
         )}

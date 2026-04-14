@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from '../styles.module.css';
 
 interface Props {
   history: string[];
@@ -15,18 +16,7 @@ export const QueryHistory: React.FC<Props> = ({ history, onSelect }) => {
   };
 
   return (
-    <select
-      onChange={handleChange}
-      defaultValue=""
-      style={{
-        background: 'var(--vscode-input-background)',
-        color: 'var(--vscode-editor-foreground)',
-        border: '1px solid var(--vscode-input-border)',
-        padding: '4px 8px',
-        borderRadius: '2px',
-        fontSize: '13px',
-      }}
-    >
+    <select className={styles.select} onChange={handleChange} defaultValue="">
       <option value="" disabled>— History —</option>
       {history.length === 0
         ? <option value="" disabled>No history yet</option>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FtIndexInfo } from '../../../shared/types';
+import styles from '../styles.module.css';
 
 interface Props {
   indexes: FtIndexInfo[];
@@ -10,16 +11,9 @@ interface Props {
 export const IndexSelector: React.FC<Props> = ({ indexes, selected, onChange }) => {
   return (
     <select
+      className={styles.select}
       value={selected ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      style={{
-        background: 'var(--vscode-input-background)',
-        color: 'var(--vscode-editor-foreground)',
-        border: '1px solid var(--vscode-input-border)',
-        padding: '4px 8px',
-        borderRadius: '2px',
-        fontSize: '13px',
-      }}
     >
       {!selected && <option value="" disabled>— Select Index —</option>}
       {indexes.map((idx) => (
