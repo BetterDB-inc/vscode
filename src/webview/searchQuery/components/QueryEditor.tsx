@@ -1,6 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import MonacoEditor, { type OnMount } from '@monaco-editor/react';
+import MonacoEditor, { loader, type OnMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
+
+loader.config({ monaco });
+
+(self as unknown as { MonacoEnvironment: { getWorker: () => null } }).MonacoEnvironment = {
+  getWorker: () => null,
+};
 
 interface Props {
   value: string;
