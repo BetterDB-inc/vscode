@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import MonacoEditor, { loader, type OnMount } from '@monaco-editor/react';
+import React, { useRef, useEffect, useCallback } from 'react';
+import MonacoEditor, { loader, type OnMount, type BeforeMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 import styles from '../styles.module.css';
 
@@ -27,10 +27,9 @@ function getCssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function applyVscodeTheme(): void {
+function defineVscodeTheme(): void {
   const bg = getCssVar('--vscode-editor-background') || '#1e1e1e';
   const fg = getCssVar('--vscode-editor-foreground') || '#d4d4d4';
-  const lineHighlight = getCssVar('--vscode-editor-lineHighlightBackground') || bg;
   const selectionBg = getCssVar('--vscode-editor-selectionBackground') || '#264f78';
 
   monaco.editor.defineTheme('vscode-match', {
@@ -40,35 +39,38 @@ function applyVscodeTheme(): void {
     colors: {
       'editor.background': bg,
       'editor.foreground': fg,
-      'editor.lineHighlightBackground': lineHighlight,
       'editor.selectionBackground': selectionBg,
     },
   });
-  monaco.editor.setTheme('vscode-match');
 }
+
+defineVscodeTheme();
 
 export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled }) => {
   const onRunRef = useRef(onRun);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => { onRunRef.current = onRun; }, [onRun]);
 
-  const handleMount: OnMount = useCallback((editor) => {
-    applyVscodeTheme();
-    setReady(true);
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      defineVscodeTheme();
+      monaco.editor.setTheme('vscode-match');
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-vscode-theme-kind', 'class'] });
+    return () => observer.disconnect();
+  }, []);
 
+  const handleBeforeMount: BeforeMount = useCallback(() => {
+    defineVscodeTheme();
+  }, []);
+
+  const handleMount: OnMount = useCallback((editor) => {
+    monaco.editor.setTheme('vscode-match');
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
       () => onRunRef.current()
     );
   }, []);
-
-  useEffect(() => {
-    if (!ready) return;
-    const observer = new MutationObserver(() => applyVscodeTheme());
-    observer.observe(document.body, { attributes: true, attributeFilter: ['data-vscode-theme-kind', 'class'] });
-    return () => observer.disconnect();
-  }, [ready]);
 
   return (
     <div className={`${styles.editorWrap}${disabled ? ` ${styles.editorWrapDisabled}` : ''}`}>
@@ -77,6 +79,7 @@ export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled 
         language="plaintext"
         value={value}
         onChange={(val) => onChange(val ?? '')}
+        beforeMount={handleBeforeMount}
         onMount={handleMount}
         options={{
           minimap: { enabled: false },
