@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import MonacoEditor, { loader, type OnMount } from '@monaco-editor/react';
 import * as monaco from 'monaco-editor';
 
@@ -24,9 +24,24 @@ function getMonacoTheme(): string {
 
 export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled }) => {
   const onRunRef = useRef(onRun);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [theme, setTheme] = useState(getMonacoTheme());
+
   useEffect(() => { onRunRef.current = onRun; }, [onRun]);
 
-  const handleMount: OnMount = (editor) => {
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      const next = getMonacoTheme();
+      setTheme(next);
+      monaco.editor.setTheme(next);
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['data-vscode-theme-kind', 'class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const handleMount: OnMount = (editor, monacoInstance) => {
+    editorRef.current = editor;
+    monacoInstance.editor.setTheme(getMonacoTheme());
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
       () => onRunRef.current()
@@ -41,7 +56,7 @@ export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled 
       opacity: disabled ? 0.6 : 1,
     }}>
       <MonacoEditor
-        height="80px"
+        height="min(33vh, 500px)"
         language="plaintext"
         value={value}
         onChange={(val) => onChange(val ?? '')}
@@ -57,9 +72,8 @@ export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled 
           overviewRulerLanes: 0,
           hideCursorInOverviewRuler: true,
           renderLineHighlight: 'none',
-          scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
         }}
-        theme={getMonacoTheme()}
+        theme={theme}
       />
     </div>
   );
