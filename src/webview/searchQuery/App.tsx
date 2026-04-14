@@ -58,7 +58,7 @@ export const App: React.FC<Props> = ({ initialData }) => {
   }, []);
 
   const runQuery = () => {
-    if (!selectedIndex || !query.trim() || loading) {
+    if (!selectedIndex || !query.trim() || loading || !connected) {
       return;
     }
     setLoading(true);
@@ -114,14 +114,14 @@ export const App: React.FC<Props> = ({ initialData }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button
             onClick={runQuery}
-            disabled={!selectedIndex || !query.trim() || loading}
+            disabled={!selectedIndex || !query.trim() || loading || !connected}
             style={{
               background: 'var(--vscode-button-background)',
               color: 'var(--vscode-button-foreground)',
               border: 'none',
               padding: '6px 14px',
               borderRadius: '2px',
-              cursor: (!selectedIndex || !query.trim() || loading) ? 'not-allowed' : 'pointer',
+              cursor: (!selectedIndex || !query.trim() || loading || !connected) ? 'not-allowed' : 'pointer',
               fontSize: '13px',
               opacity: (!selectedIndex || !query.trim() || loading) ? 0.5 : 1,
             }}

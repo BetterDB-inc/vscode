@@ -1,9 +1,7 @@
 import Valkey from 'iovalkey';
+import { SearchResult } from '../shared/types';
 
-export interface SearchResult {
-  key: string;
-  fields: Record<string, string>;
-}
+export type { SearchResult };
 
 export interface QueryExecuteOptions {
   command: string;
@@ -38,7 +36,7 @@ export function parseSearchResponse(raw: unknown[]): SearchResult[] {
     const fields: Record<string, string> = {};
 
     if (Array.isArray(fieldEntry)) {
-      for (let j = 0; j < fieldEntry.length - 1; j += 2) {
+      for (let j = 0; j + 1 < fieldEntry.length; j += 2) {
         fields[fieldEntry[j] as string] = fieldEntry[j + 1] as string;
       }
     }

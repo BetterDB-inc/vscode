@@ -1,9 +1,6 @@
-import { FtIndexInfo } from '../../shared/types';
+import { FtIndexInfo, SearchResult } from '../../shared/types';
 
-export interface SearchResult {
-  key: string;
-  fields: Record<string, string>;
-}
+export type { SearchResult };
 
 export type ExtensionMessage =
   | { command: 'init'; indexes: FtIndexInfo[]; selectedIndex: string | null; history: string[] }

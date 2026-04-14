@@ -10,6 +10,11 @@ export interface FtFieldInfo {
   vectorDistanceMetric?: string;
 }
 
+export interface SearchResult {
+  key: string;
+  fields: Record<string, string>;
+}
+
 export interface FtIndexInfo {
   name: string;
   numDocs: number;
