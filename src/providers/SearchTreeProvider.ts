@@ -15,14 +15,19 @@ const FIELD_ICONS: Record<string, string> = {
 
 type SearchTreeItem = FtIndexItem | FtFieldItem;
 
-class FtIndexItem extends vscode.TreeItem {
-  constructor(public readonly info: FtIndexInfo) {
+export class SearchIndexTreeItem extends vscode.TreeItem {
+  readonly indexName: string;
+
+  constructor(public readonly info: FtIndexInfo, public readonly connectionId: string) {
     super(info.name, vscode.TreeItemCollapsibleState.Collapsed);
+    this.indexName = info.name;
     this.iconPath = new vscode.ThemeIcon('list-tree');
     this.description = `${info.numDocs} doc${info.numDocs !== 1 ? 's' : ''} \u00b7 ${info.indexingState}`;
     this.contextValue = 'search-index';
   }
 }
+
+const FtIndexItem = SearchIndexTreeItem;
 
 class FtFieldItem extends vscode.TreeItem {
   constructor(field: FtFieldInfo) {
@@ -62,6 +67,10 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
     }
   }
 
+  getActiveConnectionId(): string | null {
+    return this.activeConnectionId;
+  }
+
   clear(): void {
     this.activeConnectionId = null;
     this.keyService = null;
@@ -99,7 +108,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
         for (const name of indexes) {
           try {
             const info = await this.keyService.getSearchIndexInfo(name);
-            items.push(new FtIndexItem(info));
+            items.push(new FtIndexItem(info, this.activeConnectionId!));
           } catch {
             const errorItem = new FtIndexItem({
               name,
@@ -109,7 +118,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
               fields: [],
               indexOn: 'HASH',
               prefixes: [],
-            });
+            }, this.activeConnectionId!);
             errorItem.description = 'failed to load';
             items.push(errorItem);
           }
