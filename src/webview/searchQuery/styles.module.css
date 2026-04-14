@@ -19,18 +19,21 @@
 }
 
 .connectionLost {
-  background: var(--vscode-warningForeground);
-  color: var(--vscode-editor-background);
+  background: var(--vscode-inputValidation-errorBackground);
+  color: var(--vscode-errorForeground);
   padding: 6px 12px;
   text-align: center;
   font-weight: 600;
+  border-bottom: 1px solid var(--vscode-errorForeground);
 }
 
 .toolbar {
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+  flex-shrink: 0;
 }
 
 .toolbarRow {
@@ -41,7 +44,11 @@
 }
 
 .indexLabel {
-  opacity: 0.7;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
 }
 
 .actionRow {
@@ -54,10 +61,12 @@
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
   border: none;
-  padding: 6px 14px;
+  padding: 5px 14px;
   border-radius: 2px;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .runBtn:hover:not(:disabled) {
@@ -70,67 +79,73 @@
 }
 
 .resultsMeta {
-  opacity: 0.6;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
   font-size: 12px;
 }
 
-.resultsArea {
-  flex: 1;
-  overflow: auto;
-  border-top: 1px solid var(--vscode-input-border);
-  padding: 8px 12px;
-}
-
-.placeholder {
-  text-align: center;
-  padding: 32px;
-  opacity: 0.4;
-}
-
-.errorBox {
-  color: var(--vscode-errorForeground);
-  padding: 8px;
-  border: 1px solid var(--vscode-errorForeground);
-  border-radius: 2px;
-  margin-bottom: 8px;
-}
-
-/* IndexSelector / QueryHistory */
-
 .select {
   background: var(--vscode-input-background);
-  color: var(--vscode-editor-foreground);
+  color: var(--vscode-input-foreground, var(--vscode-editor-foreground));
   border: 1px solid var(--vscode-input-border);
   padding: 4px 8px;
   border-radius: 2px;
   font-size: 13px;
+  outline: none;
 }
 
-/* QueryEditor */
+.select:focus {
+  border-color: var(--vscode-focusBorder);
+}
 
 .editorWrap {
-  height: clamp(120px, 33vh, 500px);
+  height: min(33vh, 500px);
+  min-height: 100px;
   border: 1px solid var(--vscode-input-border);
   border-radius: 2px;
   overflow: hidden;
+  background: var(--vscode-editor-background);
+}
+
+.editorWrap:focus-within {
+  border-color: var(--vscode-focusBorder);
 }
 
 .editorWrapDisabled {
   opacity: 0.6;
 }
 
-/* ResultsTable */
+.resultsArea {
+  flex: 1;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+
+.placeholder {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
+}
+
+.errorBox {
+  color: var(--vscode-errorForeground);
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.1));
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  border-radius: 4px;
+  margin: 8px 0;
+  font-size: 12px;
+}
 
 .noResults {
   text-align: center;
   padding: 24px;
-  opacity: 0.6;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
 }
 
-.resultsMeta2 {
-  padding: 6px 0;
+.resultsSummary {
+  padding: 8px 0;
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
 }
 
 .tableWrap {
@@ -146,14 +161,18 @@
 .th {
   text-align: left;
   padding: 6px 8px;
-  border-bottom: 1px solid var(--vscode-input-border);
+  border-bottom: 2px solid var(--vscode-panel-border, #3c3c3c);
   font-weight: 600;
   white-space: nowrap;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--vscode-descriptionForeground, #8b8b8b);
 }
 
 .td {
   padding: 5px 8px;
-  border-bottom: 1px solid var(--vscode-input-border);
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
   vertical-align: top;
   max-width: 300px;
   overflow: hidden;
@@ -166,7 +185,7 @@
 }
 
 .trOdd {
-  background: var(--vscode-list-hoverBackground);
+  background: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.04));
 }
 
 .keyLink {
@@ -177,6 +196,7 @@
   color: var(--vscode-textLink-foreground);
   font-size: 13px;
   text-align: left;
+  font-family: var(--vscode-editor-font-family, monospace);
 }
 
 .keyLink:hover {

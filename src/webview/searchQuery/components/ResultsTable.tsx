@@ -20,7 +20,7 @@ export const ResultsTable: React.FC<Props> = ({ results, total, tookMs, onKeyCli
 
   return (
     <div>
-      <div className={styles.resultsMeta2}>
+      <div className={styles.resultsSummary}>
         {total} result{total !== 1 ? 's' : ''} ({tookMs}ms)
       </div>
       <div className={styles.tableWrap}>
