@@ -274,7 +274,7 @@ async function importBinary(
       result.errors.push(`RESTORE ${key}: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    options.onProgress?.(result.imported + result.skipped, total);
+    options.onProgress?.(result.imported + result.skipped + result.failed, total);
   }
 
   return result;
