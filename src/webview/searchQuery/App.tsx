@@ -87,16 +87,6 @@ export const App: React.FC<Props> = ({ initialData }) => {
           <span className={styles.indexLabel}>Index:</span>
           <IndexSelector indexes={indexes} selected={selectedIndex} onChange={setSelectedIndex} />
           <QueryHistory history={history} onSelect={handleHistorySelect} />
-        </div>
-
-        <QueryEditor
-          value={query}
-          onChange={setQuery}
-          onRun={runQuery}
-          disabled={loading || !connected}
-        />
-
-        <div className={styles.actionRow}>
           <button
             className={styles.runBtn}
             onClick={runQuery}
@@ -111,6 +101,13 @@ export const App: React.FC<Props> = ({ initialData }) => {
           )}
         </div>
       </div>
+
+      <QueryEditor
+        value={query}
+        onChange={setQuery}
+        onRun={runQuery}
+        disabled={loading || !connected}
+      />
 
       <div className={styles.resultsArea}>
         {error && <div className={styles.errorBox}>{error}</div>}

@@ -98,7 +98,7 @@
 }
 
 .editorWrap {
-  height: min(33vh, 500px);
+  flex: 1;
   min-height: 100px;
   border: 1px solid var(--vscode-input-border);
   border-radius: 2px;
@@ -115,7 +115,8 @@
 }
 
 .resultsArea {
-  flex: 1;
+  flex-shrink: 0;
+  max-height: 40vh;
   overflow: auto;
   padding: 0 12px 12px;
 }
