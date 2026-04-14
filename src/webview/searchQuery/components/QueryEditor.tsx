@@ -50,13 +50,14 @@ export const QueryEditor: React.FC<Props> = ({ value, onChange, onRun, disabled 
 
   return (
     <div style={{
+      height: 'clamp(120px, 33vh, 500px)',
       border: '1px solid var(--vscode-input-border)',
       borderRadius: '2px',
       overflow: 'hidden',
       opacity: disabled ? 0.6 : 1,
     }}>
       <MonacoEditor
-        height="min(33vh, 500px)"
+        height="100%"
         language="plaintext"
         value={value}
         onChange={(val) => onChange(val ?? '')}
