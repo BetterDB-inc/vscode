@@ -18,7 +18,7 @@ export interface QueryExecuteResult {
 
 interface QueryCommand {
   prefix: string;
-  execute: (client: Valkey, index: string, queryArgs: string[]) => Promise<unknown[]>;
+  execute: (client: Valkey, index: string, query: string) => Promise<unknown[]>;
   parseResponse: (raw: unknown[]) => SearchResult[];
 }
 
@@ -51,8 +51,8 @@ export function parseSearchResponse(raw: unknown[]): SearchResult[] {
 const commandRegistry: QueryCommand[] = [
   {
     prefix: 'FT.SEARCH',
-    execute: (client: Valkey, index: string, queryArgs: string[]) =>
-      client.call('FT.SEARCH', index, ...queryArgs) as Promise<unknown[]>,
+    execute: (client: Valkey, index: string, query: string) =>
+      client.call('FT.SEARCH', index, query) as Promise<unknown[]>,
     parseResponse: parseSearchResponse,
   },
 ];
@@ -81,14 +81,14 @@ export async function executeSearchQuery(
     return { results: [], total: 0, tookMs: 0, error: `Unknown command: ${options.command}` };
   }
 
-  const queryArgs = options.query.split(/\s+/).filter((s) => s.length > 0);
+  const query = options.query.trim();
   const start = Date.now();
 
   try {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Query timed out after 10s')), 10_000)
     );
-    const raw = await Promise.race([command.execute(client, options.index, queryArgs), timeout]);
+    const raw = await Promise.race([command.execute(client, options.index, query), timeout]);
     const tookMs = Date.now() - start;
     const results = command.parseResponse(raw);
     const total = typeof raw[0] === 'number' ? raw[0] : parseInt(raw[0] as string, 10) || 0;
