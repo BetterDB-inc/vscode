@@ -85,7 +85,10 @@ export async function executeSearchQuery(
   const start = Date.now();
 
   try {
-    const raw = await command.execute(client, options.index, queryArgs);
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Query timed out after 10s')), 10_000)
+    );
+    const raw = await Promise.race([command.execute(client, options.index, queryArgs), timeout]);
     const tookMs = Date.now() - start;
     const results = command.parseResponse(raw);
     const total = typeof raw[0] === 'number' ? raw[0] : parseInt(raw[0] as string, 10) || 0;
