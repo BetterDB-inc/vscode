@@ -13,7 +13,7 @@ const FIELD_ICONS: Record<string, string> = {
   GEOSHAPES: 'globe',
 };
 
-type SearchTreeItem = FtIndexItem | FtFieldItem;
+type SearchTreeItem = SearchIndexTreeItem | FtFieldItem;
 
 export class SearchIndexTreeItem extends vscode.TreeItem {
   readonly indexName: string;
@@ -26,8 +26,6 @@ export class SearchIndexTreeItem extends vscode.TreeItem {
     this.contextValue = 'search-index';
   }
 }
-
-const FtIndexItem = SearchIndexTreeItem;
 
 class FtFieldItem extends vscode.TreeItem {
   constructor(field: FtFieldInfo) {
@@ -104,13 +102,13 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
           empty.iconPath = new vscode.ThemeIcon('info');
           return [empty as SearchTreeItem];
         }
-        const items: FtIndexItem[] = [];
+        const items: SearchIndexTreeItem[] = [];
         for (const name of indexes) {
           try {
             const info = await this.keyService.getSearchIndexInfo(name);
-            items.push(new FtIndexItem(info, this.activeConnectionId!));
+            items.push(new SearchIndexTreeItem(info, this.activeConnectionId!));
           } catch {
-            const errorItem = new FtIndexItem({
+            const errorItem = new SearchIndexTreeItem({
               name,
               numDocs: 0,
               indexingState: 'indexing',
@@ -133,7 +131,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
       }
     }
 
-    if (element instanceof FtIndexItem) {
+    if (element instanceof SearchIndexTreeItem) {
       return element.info.fields.map((field) => new FtFieldItem(field));
     }
 

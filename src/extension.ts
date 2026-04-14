@@ -39,6 +39,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const connectedIds = new Set<string>();
 
+  connectionManager.loadConnections().then((configs) => {
+    for (const config of configs) {
+      if (connectionManager.isConnected(config.id)) {
+        connectedIds.add(config.id);
+      }
+    }
+  });
+
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('betterdb-connections', connectionTreeProvider),
     vscode.window.registerTreeDataProvider('betterdb-keys', keyTreeProvider),
