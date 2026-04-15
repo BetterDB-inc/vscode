@@ -221,3 +221,65 @@
   border: 1px solid var(--vscode-input-border);
   border-radius: 2px;
 }
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  min-height: 60px;
+}
+
+.resultsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.resultsMeta {
+  opacity: 0.7;
+}
+
+.tableWrap {
+  overflow: auto;
+  max-height: 50vh;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th, .table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  vertical-align: top;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--vscode-editor-background);
+  font-weight: 600;
+}
+
+.keyLink {
+  background: transparent;
+  border: none;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+}
+.keyLink:hover { color: var(--vscode-textLink-activeForeground); }

@@ -56,6 +56,16 @@ export interface SearchResult {
   fields: Record<string, string>;
 }
 
+export interface ParsedSearchResponse {
+  total: number;
+  hits: SearchResult[];
+}
+
+export interface ParsedAggregateResponse {
+  total: number;
+  rows: Record<string, string>[];
+}
+
 export interface FtIndexInfo {
   name: string;
   numDocs: number;

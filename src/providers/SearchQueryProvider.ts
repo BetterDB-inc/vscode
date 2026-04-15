@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/ConnectionManager';
-import { SearchQueryService } from '../services/SearchQueryService';
+import { SearchQueryService, parseSearchResponse, tokenizeCommand } from '../services/SearchQueryService';
 import { CliTerminalBridge } from '../services/CliTerminalBridge';
 import { WebviewToExtMessage } from '../webview/searchQuery/types';
 
@@ -112,6 +112,34 @@ export class SearchQueryProvider implements vscode.Disposable {
           return;
         case 'sendToCli':
           await sendCliAck('send', () => this.bridge.sendForEdit(connectionId, msg.commandLine));
+          return;
+        case 'executeQuery': {
+          const started = Date.now();
+          try {
+            const tokens = tokenizeCommand(msg.commandLine);
+            if (tokens.length === 0) {
+              throw new Error('Empty command');
+            }
+            const [cmd, ...args] = tokens;
+            const raw = await activeClient.call(cmd, ...args);
+            const parsed = parseSearchResponse(raw);
+            webview.postMessage({
+              command: 'queryResult', ok: true,
+              total: parsed.total, hits: parsed.hits,
+              tookMs: Date.now() - started,
+              commandLine: msg.commandLine,
+            });
+          } catch (err) {
+            webview.postMessage({
+              command: 'queryResult', ok: false,
+              error: err instanceof Error ? err.message : String(err),
+              commandLine: msg.commandLine,
+            });
+          }
+          return;
+        }
+        case 'openKey':
+          vscode.commands.executeCommand('betterdb.openKey', connectionId, msg.key);
           return;
       }
     });

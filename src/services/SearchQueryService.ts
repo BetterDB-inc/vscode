@@ -1,4 +1,4 @@
-import { IndexField, FtFieldType } from '../shared/types';
+import { IndexField, FtFieldType, ParsedSearchResponse, SearchResult, ParsedAggregateResponse } from '../shared/types';
 
 interface RedisClient {
   call: (command: string, ...args: (string | number | Buffer)[]) => Promise<unknown>;
@@ -29,6 +29,92 @@ export class SearchQueryService {
     if (!Array.isArray(raw)) return [];
     return raw.map(toStr);
   }
+}
+
+export function parseSearchResponse(raw: unknown): ParsedSearchResponse {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new Error('FT.SEARCH returned an unexpected response');
+  }
+  const total = Number(raw[0]);
+  if (!Number.isFinite(total)) {
+    throw new Error('FT.SEARCH total is not a number');
+  }
+  const hits: SearchResult[] = [];
+  for (let i = 1; i < raw.length; i += 2) {
+    const key = toStr(raw[i]);
+    const fieldsRaw = raw[i + 1];
+    const fields: Record<string, string> = {};
+    if (Array.isArray(fieldsRaw)) {
+      for (let j = 0; j < fieldsRaw.length - 1; j += 2) {
+        fields[toStr(fieldsRaw[j])] = toStr(fieldsRaw[j + 1]);
+      }
+    }
+    hits.push({ key, fields });
+  }
+  return { total, hits };
+}
+
+export function parseAggregateResponse(raw: unknown): ParsedAggregateResponse {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    throw new Error('FT.AGGREGATE returned an unexpected response');
+  }
+  const total = Number(raw[0]);
+  if (!Number.isFinite(total)) {
+    throw new Error('FT.AGGREGATE total is not a number');
+  }
+  const rows: Record<string, string>[] = [];
+  for (let i = 1; i < raw.length; i++) {
+    const rowRaw = raw[i];
+    const row: Record<string, string> = {};
+    if (Array.isArray(rowRaw)) {
+      for (let j = 0; j < rowRaw.length - 1; j += 2) {
+        row[toStr(rowRaw[j])] = toStr(rowRaw[j + 1]);
+      }
+    }
+    rows.push(row);
+  }
+  return { total, rows };
+}
+
+export function tokenizeCommand(line: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    while (i < line.length && /\s/.test(line[i])) i++;
+    if (i >= line.length) break;
+    let token = '';
+    if (line[i] === '"') {
+      i++;
+      while (i < line.length && line[i] !== '"') {
+        if (line[i] === '\\' && i + 1 < line.length) {
+          token += line[i + 1];
+          i += 2;
+        } else {
+          token += line[i++];
+        }
+      }
+      if (line[i] === '"') i++;
+    } else {
+      while (i < line.length && !/\s/.test(line[i])) {
+        token += line[i++];
+      }
+    }
+    tokens.push(token);
+  }
+  return tokens;
+}
+
+export function parseInfoResponse(raw: unknown): Record<string, string> {
+  if (!Array.isArray(raw)) {
+    throw new Error('FT.INFO returned a non-array response');
+  }
+  const map: Record<string, string> = {};
+  for (let i = 0; i < raw.length - 1; i += 2) {
+    const key = toStr(raw[i]);
+    const value = raw[i + 1];
+    map[key] = Array.isArray(value) ? JSON.stringify(value) : toStr(value);
+  }
+  return map;
 }
 
 function parseAttributes(raw: unknown): IndexField[] {

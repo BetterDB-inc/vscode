@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('vscode', () => ({}));
 
-import { SearchQueryService } from '../SearchQueryService';
+import { SearchQueryService, parseSearchResponse, parseAggregateResponse, parseInfoResponse } from '../SearchQueryService';
 
 const ftInfoResponse = [
   'index_name', 'idx:users',
@@ -125,5 +125,72 @@ describe('SearchQueryService.fetchIndexSchema robustness', () => {
     const client = { call: vi.fn().mockResolvedValue(['attributes', 'oops']) };
     const svc = new SearchQueryService();
     await expect(svc.fetchIndexSchema(client, 'x')).rejects.toThrow(/attributes value/);
+  });
+});
+
+describe('parseSearchResponse', () => {
+  it('parses total + key/field rows', () => {
+    const raw = [
+      52,
+      'user:13', ['name', 'Alice', 'age', '26'],
+      'user:47', ['name', 'Bob',   'age', '26'],
+    ];
+    expect(parseSearchResponse(raw)).toEqual({
+      total: 52,
+      hits: [
+        { key: 'user:13', fields: { name: 'Alice', age: '26' } },
+        { key: 'user:47', fields: { name: 'Bob',   age: '26' } },
+      ],
+    });
+  });
+
+  it('handles empty result set', () => {
+    expect(parseSearchResponse([0])).toEqual({ total: 0, hits: [] });
+  });
+
+  it('coerces Buffer keys and field values', () => {
+    const raw = [
+      1,
+      Buffer.from('user:1'),
+      [Buffer.from('name'), Buffer.from('Carol')],
+    ];
+    expect(parseSearchResponse(raw)).toEqual({
+      total: 1,
+      hits: [{ key: 'user:1', fields: { name: 'Carol' } }],
+    });
+  });
+
+  it('throws on non-array reply', () => {
+    expect(() => parseSearchResponse('OK')).toThrow(/unexpected/);
+  });
+});
+
+describe('parseAggregateResponse', () => {
+  it('parses total + flat key/value rows', () => {
+    const raw = [
+      2,
+      ['city', 'Portland', 'count', '12'],
+      ['city', 'Seattle',  'count', '7'],
+    ];
+    expect(parseAggregateResponse(raw)).toEqual({
+      total: 2,
+      rows: [
+        { city: 'Portland', count: '12' },
+        { city: 'Seattle',  count: '7' },
+      ],
+    });
+  });
+});
+
+describe('parseInfoResponse', () => {
+  it('flattens key/value pairs to a string map', () => {
+    const raw = ['index_name', 'idx:users', 'num_docs', '1000'];
+    expect(parseInfoResponse(raw)).toEqual({ index_name: 'idx:users', num_docs: '1000' });
+  });
+
+  it('serializes nested arrays as JSON', () => {
+    const raw = ['attributes', [['identifier', 'name']]];
+    const result = parseInfoResponse(raw);
+    expect(result.attributes).toContain('identifier');
   });
 });

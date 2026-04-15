@@ -5,8 +5,9 @@ import { IndexSelector } from './components/IndexSelector';
 import { QueryBuilder } from './components/QueryBuilder';
 import { CommandPreview } from './components/CommandPreview';
 import { Toolbar } from './components/Toolbar';
+import { ResultsTable } from './components/ResultsTable';
 import { generateCommand } from './services/queryGenerator';
-import { BuilderState, IndexField, FieldFilter, FtFieldType } from '../../shared/types';
+import { BuilderState, IndexField, FieldFilter, FtFieldType, SearchResult } from '../../shared/types';
 import { ExtToWebviewMessage, WebviewToExtMessage } from './types';
 
 const emptyValueFor = (t: FtFieldType): FieldFilter['value'] => {
@@ -40,6 +41,7 @@ export function App() {
   const [connectionLost, setConnectionLost] = useState(false);
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [ack, setAck] = useState<{ action: 'execute' | 'send'; ok: boolean; error?: string } | null>(null);
+  const [results, setResults] = useState<{ total: number; hits: SearchResult[]; tookMs: number; error: string | null } | null>(null);
 
   const post = useCallback((msg: WebviewToExtMessage) => vscode.postMessage(msg), [vscode]);
 
@@ -62,6 +64,13 @@ export function App() {
           break;
         case 'cliAck':
           setAck({ action: msg.action, ok: msg.ok, error: msg.error });
+          break;
+        case 'queryResult':
+          if (msg.ok) {
+            setResults({ total: msg.total, hits: msg.hits, tookMs: msg.tookMs, error: null });
+          } else {
+            setResults({ total: 0, hits: [], tookMs: 0, error: msg.error });
+          }
           break;
         case 'connectionLost':
           setConnectionLost(true);
@@ -130,10 +139,20 @@ export function App() {
       <Toolbar
         commandLine={preview}
         disabled={connectionLost || preview.trim().length === 0}
-        onExecute={() => post({ command: 'executeInCli', commandLine: preview })}
+        onExecute={() => post({ command: 'executeQuery', commandLine: preview })}
         onSendToCli={() => post({ command: 'sendToCli', commandLine: preview })}
         ack={ack}
       />
+
+      {results && (
+        <ResultsTable
+          total={results.total}
+          hits={results.hits}
+          tookMs={results.tookMs}
+          error={results.error}
+          onOpenKey={(key) => post({ command: 'openKey', key })}
+        />
+      )}
     </div>
   );
 }
