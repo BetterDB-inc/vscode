@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext): void {
       searchTreeProvider.refresh();
     }),
     vscode.commands.registerCommand('betterdb.openWebsite', () => {
-      vscode.env.openExternal(vscode.Uri.parse('https://betterdb.com'));
+      vscode.env.openExternal(vscode.Uri.parse('https://betterdb.com?utm_source=vscode&utm_medium=extension&utm_campaign=betterdb'));
     }),
     vscode.commands.registerCommand('betterdb.openRepo', () => {
       vscode.env.openExternal(vscode.Uri.parse('https://github.com/betterdb-inc/vscode'));
