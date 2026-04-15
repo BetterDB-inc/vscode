@@ -118,4 +118,39 @@ describe('generateCommand', () => {
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });
+
+  it('TAG escapes pipes, braces, hyphens and spaces', () => {
+    const state = baseState({
+      fields: [{ name: 'city', type: 'TAG', enabled: true, value: { selected: ['San Francisco', 'a|b', 'first-class'] } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users @city:{San\\ Francisco|a\\|b|first\\-class}');
+  });
+
+  it('TEXT escapes embedded quotes and backslashes', () => {
+    const state = baseState({
+      fields: [{ name: 'bio', type: 'TEXT', enabled: true, value: { term: 'she said "hi"' } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users @bio:"she said \\"hi\\""');
+  });
+
+  it('NUMERIC between with min > max is skipped', () => {
+    const state = baseState({
+      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'between', value1: 30, value2: 18 } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
+  });
+
+  it('NUMERIC with NaN value is skipped', () => {
+    const state = baseState({
+      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'eq', value1: NaN, value2: null } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
+  });
+
+  it('GEO with negative radius is skipped', () => {
+    const state = baseState({
+      fields: [{ name: 'loc', type: 'GEO', enabled: true, value: { lon: 0, lat: 0, radius: -5, unit: 'km' } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
+  });
 });

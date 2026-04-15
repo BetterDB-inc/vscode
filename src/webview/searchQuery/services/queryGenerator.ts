@@ -1,5 +1,11 @@
 import { BuilderState, FieldFilter, NumericValue, TagValue, TextValue, GeoValue } from '../../../shared/types';
 
+const TAG_SPECIAL = /([,.<>{}[\]"':;!@#$%^&*()\-+=~|/\\ ])/g;
+const TEXT_SPECIAL = /([\\"])/g;
+
+const escapeTag = (v: string): string => v.replace(TAG_SPECIAL, '\\$1');
+const escapeText = (v: string): string => v.replace(TEXT_SPECIAL, '\\$1');
+
 export function generateCommand(state: BuilderState): string {
   if (state.command === 'FT.INFO') {
     return `FT.INFO ${state.indexName}`;
@@ -13,16 +19,23 @@ export function generateCommand(state: BuilderState): string {
 
 function hasValue(f: FieldFilter): boolean {
   switch (f.type) {
-    case 'TAG': return (f.value as TagValue).selected.length > 0;
+    case 'TAG': {
+      const v = f.value as TagValue;
+      return v.selected.some((s) => s.length > 0);
+    }
     case 'NUMERIC': {
       const v = f.value as NumericValue;
-      if (v.operator === 'between') return v.value1 !== null && v.value2 !== null;
-      return v.value1 !== null;
+      if (!isFinite(v.value1 ?? NaN)) return false;
+      if (v.operator === 'between') {
+        if (!isFinite(v.value2 ?? NaN)) return false;
+        return (v.value1 as number) <= (v.value2 as number);
+      }
+      return true;
     }
     case 'TEXT': return (f.value as TextValue).term.trim().length > 0;
     case 'GEO': {
       const v = f.value as GeoValue;
-      return v.lon !== null && v.lat !== null && v.radius !== null;
+      return isFinite(v.lon ?? NaN) && isFinite(v.lat ?? NaN) && isFinite(v.radius ?? NaN) && (v.radius as number) >= 0;
     }
     default: return false;
   }
@@ -32,7 +45,8 @@ function clauseFor(f: FieldFilter): string {
   switch (f.type) {
     case 'TAG': {
       const v = f.value as TagValue;
-      return `@${f.name}:{${v.selected.join('|')}}`;
+      const escaped = v.selected.filter((s) => s.length > 0).map(escapeTag).join('|');
+      return `@${f.name}:{${escaped}}`;
     }
     case 'NUMERIC': {
       const v = f.value as NumericValue;
@@ -40,7 +54,8 @@ function clauseFor(f: FieldFilter): string {
     }
     case 'TEXT': {
       const term = (f.value as TextValue).term.trim();
-      return /\s/.test(term) ? `@${f.name}:"${term}"` : `@${f.name}:${term}`;
+      const escaped = escapeText(term);
+      return /\s/.test(term) ? `@${f.name}:"${escaped}"` : `@${f.name}:${escaped}`;
     }
     case 'GEO': {
       const v = f.value as GeoValue;

@@ -63,6 +63,23 @@ export class SearchQueryProvider implements vscode.Disposable {
 
     const webview = panel.webview;
 
+    const sendError = (context: string, err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      webview.postMessage({ command: 'error', context, message });
+    };
+
+    const sendCliAck = async (action: 'execute' | 'send', op: () => Promise<void>) => {
+      try {
+        await op();
+        webview.postMessage({ command: 'cliAck', action, ok: true });
+      } catch (err) {
+        webview.postMessage({
+          command: 'cliAck', action, ok: false,
+          error: err instanceof Error ? err.message : 'Failed to send to CLI',
+        });
+      }
+    };
+
     const messageHandler = webview.onDidReceiveMessage(async (msg: WebviewToExtMessage) => {
       const activeClient = this.connectionManager.getClient(connectionId);
       if (!activeClient) {
@@ -70,50 +87,32 @@ export class SearchQueryProvider implements vscode.Disposable {
         return;
       }
 
-      try {
-        switch (msg.command) {
-          case 'fetchIndexes': {
+      switch (msg.command) {
+        case 'fetchIndexes':
+          try {
             const indexes = await this.service.listIndexes(activeClient);
             webview.postMessage({ command: 'init', indexes, selectedIndex: this.selectedIndexes.get(connectionId) ?? null });
-            return;
-          }
-          case 'fetchSchema': {
+          } catch (err) { sendError('fetchIndexes', err); }
+          return;
+        case 'fetchSchema':
+          try {
             const fields = await this.service.fetchIndexSchema(activeClient, msg.index);
             webview.postMessage({ command: 'indexSchema', index: msg.index, fields });
-            return;
-          }
-          case 'fetchTagValues': {
+            this.selectedIndexes.set(connectionId, msg.index);
+          } catch (err) { sendError(`fetchSchema:${msg.index}`, err); }
+          return;
+        case 'fetchTagValues':
+          try {
             const values = await this.service.fetchTagValues(activeClient, msg.index, msg.field);
             webview.postMessage({ command: 'tagValues', field: msg.field, values });
-            return;
-          }
-          case 'executeInCli': {
-            try {
-              await this.bridge.sendAndExecute(connectionId, msg.commandLine);
-              webview.postMessage({ command: 'cliAck', action: 'execute', ok: true });
-            } catch (err) {
-              webview.postMessage({
-                command: 'cliAck', action: 'execute', ok: false,
-                error: err instanceof Error ? err.message : 'Failed to send to CLI',
-              });
-            }
-            return;
-          }
-          case 'sendToCli': {
-            try {
-              await this.bridge.sendForEdit(connectionId, msg.commandLine);
-              webview.postMessage({ command: 'cliAck', action: 'send', ok: true });
-            } catch (err) {
-              webview.postMessage({
-                command: 'cliAck', action: 'send', ok: false,
-                error: err instanceof Error ? err.message : 'Failed to send to CLI',
-              });
-            }
-            return;
-          }
-        }
-      } catch (err) {
-        console.error('SearchQueryProvider message error', err);
+          } catch (err) { sendError(`fetchTagValues:${msg.field}`, err); }
+          return;
+        case 'executeInCli':
+          await sendCliAck('execute', () => this.bridge.sendAndExecute(connectionId, msg.commandLine));
+          return;
+        case 'sendToCli':
+          await sendCliAck('send', () => this.bridge.sendForEdit(connectionId, msg.commandLine));
+          return;
       }
     });
     panelDisposables.push(messageHandler);
@@ -129,6 +128,15 @@ export class SearchQueryProvider implements vscode.Disposable {
     const panel = this.panels.get(connectionId);
     if (panel) {
       panel.webview.postMessage({ command: 'connectionLost' });
+    }
+  }
+
+  notifyConnectionRemoved(connectionId: string): void {
+    const panel = this.panels.get(connectionId);
+    if (panel) {
+      panel.dispose();
+    } else {
+      this.selectedIndexes.delete(connectionId);
     }
   }
 

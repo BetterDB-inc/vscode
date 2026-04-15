@@ -18,9 +18,14 @@ interface Props {
 export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleCollapsed, onChange, onRequestTagValues }: Props) {
   if (collapsed) {
     return (
-      <div className={styles.builderCollapsed} onClick={onToggleCollapsed}>
+      <button
+        type="button"
+        className={styles.builderCollapsed}
+        onClick={onToggleCollapsed}
+        aria-expanded={false}
+      >
         ▶ Builder ({schema.length} fields)
-      </div>
+      </button>
     );
   }
 
@@ -34,8 +39,20 @@ export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleColl
   return (
     <div className={`${styles.builder} ${state.modified ? styles.builderModified : ''}`}>
       <div className={styles.header}>
-        <span style={{ cursor: 'pointer' }} onClick={onToggleCollapsed}>▼ Builder</span>
-        <select className={styles.select} value={state.command} onChange={(e) => setCommand(e.target.value as FtCommand)}>
+        <button
+          type="button"
+          className={styles.toggle}
+          onClick={onToggleCollapsed}
+          aria-expanded={true}
+        >
+          ▼ Builder
+        </button>
+        <select
+          className={styles.select}
+          value={state.command}
+          aria-label="FT command"
+          onChange={(e) => setCommand(e.target.value as FtCommand)}
+        >
           <option value="FT.SEARCH">FT.SEARCH</option>
           <option value="FT.AGGREGATE">FT.AGGREGATE</option>
           <option value="FT.INFO">FT.INFO</option>
@@ -47,6 +64,7 @@ export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleColl
           <input
             type="checkbox"
             checked={field.enabled}
+            aria-label={`Enable ${field.name}`}
             onChange={(e) => {
               setField(idx, { enabled: e.target.checked });
               if (e.target.checked && field.type === 'TAG' && !tagValues[field.name]) {
@@ -74,7 +92,7 @@ function FieldWidget({ field, tagOptions, onChange }: { field: FieldFilter; tagO
     case 'NUMERIC': return <NumericField value={field.value as NumericValue} onChange={onChange} />;
     case 'TEXT': return <TextField value={field.value as TextValue} onChange={onChange} />;
     case 'GEO': return <GeoField value={field.value as GeoValue} onChange={onChange} />;
-    case 'VECTOR': return <span style={{ opacity: 0.6 }}>VECTOR not supported in builder — type in preview</span>;
+    case 'VECTOR': return <span className={styles.unsupported}>VECTOR not supported in builder — type in preview</span>;
     default: return null;
   }
 }

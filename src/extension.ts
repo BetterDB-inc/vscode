@@ -72,6 +72,13 @@ export function activate(context: vscode.ExtensionContext): void {
     connectionManager.onDidChangeConnections(async () => {
       updateStatsClient();
       const configs = await connectionManager.loadConnections();
+      const currentIds = new Set(configs.map((c) => c.id));
+      for (const id of [...connectedIds]) {
+        if (!currentIds.has(id)) {
+          searchQueryProvider.notifyConnectionRemoved(id);
+          connectedIds.delete(id);
+        }
+      }
       for (const config of configs) {
         const wasConnected = connectedIds.has(config.id);
         const nowConnected = connectionManager.isConnected(config.id);
@@ -91,7 +98,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerKeyCommands(context, connectionManager, keyTreeProvider, keyEditorProvider, searchTreeProvider);
   registerCliCommands(context, connectionManager, cliBridge);
   registerExportCommands(context, connectionManager, keyTreeProvider);
-  registerSearchCommands(context, searchQueryProvider, searchTreeProvider, cliBridge);
+  registerSearchCommands(context, searchQueryProvider, searchTreeProvider);
 
   context.subscriptions.push(
     keyEditorProvider,

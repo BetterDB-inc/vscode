@@ -36,6 +36,43 @@
 .builderCollapsed {
   cursor: pointer;
   padding: 8px 12px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  text-align: left;
+  font: inherit;
+}
+
+.toggle {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  font: inherit;
+  padding: 0;
+}
+
+.unsupported {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.emptyHint {
+  opacity: 0.7;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.bannerDismiss {
+  float: right;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
 }
 
 .builderModified::after {
@@ -45,7 +82,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--vscode-editor-background);
+  opacity: 0.85;
   color: var(--vscode-editor-foreground);
   font-style: italic;
   pointer-events: none;

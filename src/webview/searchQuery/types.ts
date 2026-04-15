@@ -13,7 +13,8 @@ export type ExtToWebviewMessage =
   | { command: 'tagValues'; field: string; values: string[] }
   | { command: 'cliAck'; action: 'execute' | 'send'; ok: boolean; error?: string }
   | { command: 'connectionLost' }
-  | { command: 'selectIndex'; indexName: string };
+  | { command: 'selectIndex'; indexName: string }
+  | { command: 'error'; context: string; message: string };
 
 export type { BuilderState, IndexField };
 

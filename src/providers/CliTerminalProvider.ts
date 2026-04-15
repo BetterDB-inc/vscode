@@ -52,6 +52,7 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
   private cursorPosition = 0;
   private escapeBuffer = '';
   private isExecuting = false;
+  private currentExecution: Promise<void> | null = null;
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -66,6 +67,16 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
 
   setTerminal(terminal: vscode.Terminal): void {
     this.terminal = terminal;
+  }
+
+  async waitIdle(): Promise<void> {
+    while (this.currentExecution) {
+      const pending = this.currentExecution;
+      try { await pending; } catch { /* ignore — already surfaced to terminal */ }
+      if (this.currentExecution === pending) {
+        this.currentExecution = null;
+      }
+    }
   }
 
   private loadHistory(): void {
@@ -133,7 +144,7 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
     if (char === '\r' || char === '\n') {
       if (!this.isExecuting) {
         this.write('\r\n');
-        this.executeCommand(this.buffer.trim());
+        this.currentExecution = this.executeCommand(this.buffer.trim());
         this.buffer = '';
         this.cursorPosition = 0;
       }

@@ -12,13 +12,19 @@ interface Props {
 export function Toolbar({ commandLine, disabled, onExecute, onSendToCli, ack }: Props) {
   const [toast, setToast] = useState<string | null>(null);
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   useEffect(() => {
     if (!ack) return;
     if (ack.ok) {
+      setErrorMsg(null);
       setToast(ack.action === 'execute' ? 'Executing in CLI ↗' : 'Sent to CLI ↗');
       const t = setTimeout(() => setToast(null), 1800);
       return () => clearTimeout(t);
     }
+    setErrorMsg(ack.error ?? 'Failed');
+    const t = setTimeout(() => setErrorMsg(null), 4000);
+    return () => clearTimeout(t);
   }, [ack]);
 
   const empty = commandLine.trim().length === 0;
@@ -35,7 +41,7 @@ export function Toolbar({ commandLine, disabled, onExecute, onSendToCli, ack }: 
         Copy
       </button>
       {toast && <span className={styles.toast}>{toast}</span>}
-      {ack && !ack.ok && <span className={styles.errorInline}>{ack.error ?? 'Failed'}</span>}
+      {errorMsg && <span className={styles.errorInline} role="alert">{errorMsg}</span>}
     </div>
   );
 }

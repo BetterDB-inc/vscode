@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import styles from './styles.module.css';
 import { useVsCode } from './VsCodeContext';
-import { ErrorBoundary } from './ErrorBoundary';
 import { IndexSelector } from './components/IndexSelector';
 import { QueryBuilder } from './components/QueryBuilder';
 import { CommandPreview } from './components/CommandPreview';
 import { Toolbar } from './components/Toolbar';
 import { generateCommand } from './services/queryGenerator';
-import { BuilderState, FtIndexInfo, IndexField, FieldFilter, FtFieldType } from '../../shared/types';
+import { BuilderState, IndexField, FieldFilter, FtFieldType } from '../../shared/types';
 import { ExtToWebviewMessage, WebviewToExtMessage } from './types';
 
 const emptyValueFor = (t: FtFieldType): FieldFilter['value'] => {
@@ -16,7 +15,6 @@ const emptyValueFor = (t: FtFieldType): FieldFilter['value'] => {
     case 'NUMERIC': return { operator: 'eq', value1: null, value2: null };
     case 'TEXT': return { term: '' };
     case 'GEO': return { lon: null, lat: null, radius: null, unit: 'km' };
-    case 'VECTOR': return { selected: [] };
     default: return { selected: [] };
   }
 };
@@ -28,19 +26,11 @@ const buildInitialState = (indexName: string, schema: IndexField[]): BuilderStat
   modified: false,
 });
 
-const toIndexInfo = (name: string): FtIndexInfo => ({
-  name,
-  numDocs: 0,
-  indexingState: 'indexed',
-  percentIndexed: 100,
-  fields: [],
-  indexOn: 'HASH',
-  prefixes: [],
-});
+interface ErrorInfo { context: string; message: string; }
 
 export function App() {
   const vscode = useVsCode();
-  const [indexes, setIndexes] = useState<FtIndexInfo[]>([]);
+  const [indexes, setIndexes] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [schema, setSchema] = useState<IndexField[]>([]);
   const [tagValues, setTagValues] = useState<Record<string, string[]>>({});
@@ -48,6 +38,7 @@ export function App() {
   const [preview, setPreview] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [connectionLost, setConnectionLost] = useState(false);
+  const [error, setError] = useState<ErrorInfo | null>(null);
   const [ack, setAck] = useState<{ action: 'execute' | 'send'; ok: boolean; error?: string } | null>(null);
 
   const post = useCallback((msg: WebviewToExtMessage) => vscode.postMessage(msg), [vscode]);
@@ -57,12 +48,14 @@ export function App() {
       const msg = event.data;
       switch (msg.command) {
         case 'init':
-          setIndexes(msg.indexes.map(toIndexInfo));
+          setIndexes(msg.indexes);
           if (msg.selectedIndex) setSelected(msg.selectedIndex);
           break;
         case 'indexSchema':
           setSchema(msg.fields);
+          setTagValues({});
           setState(buildInitialState(msg.index, msg.fields));
+          setError(null);
           break;
         case 'tagValues':
           setTagValues((tv) => ({ ...tv, [msg.field]: msg.values }));
@@ -75,6 +68,9 @@ export function App() {
           break;
         case 'selectIndex':
           setSelected(msg.indexName);
+          break;
+        case 'error':
+          setError({ context: msg.context, message: msg.message });
           break;
       }
     };
@@ -91,10 +87,6 @@ export function App() {
     if (state) setPreview(generateCommand(state));
   }, [state]);
 
-  const onBuilderChange = (next: BuilderState) => {
-    setState(next);
-  };
-
   const onPreviewChange = (next: string, manual: boolean) => {
     setPreview(next);
     if (manual && state) setState({ ...state, modified: true });
@@ -105,36 +97,43 @@ export function App() {
   };
 
   return (
-    <ErrorBoundary>
-      <div className={styles.app}>
-        {connectionLost && <div className={styles.banner}>Connection lost. Reconnect to continue.</div>}
-
-        <div className={styles.header}>
-          <IndexSelector indexes={indexes} selected={selected} onChange={setSelected} />
+    <div className={styles.app}>
+      {connectionLost && <div className={styles.banner}>Connection lost. Reconnect to continue.</div>}
+      {error && (
+        <div className={styles.banner} role="alert">
+          {error.context}: {error.message}
+          <button className={styles.bannerDismiss} onClick={() => setError(null)} aria-label="Dismiss">×</button>
         </div>
+      )}
 
-        {state && schema.length > 0 && (
-          <QueryBuilder
-            state={state}
-            schema={schema}
-            tagValues={tagValues}
-            collapsed={collapsed}
-            onToggleCollapsed={() => setCollapsed((c) => !c)}
-            onChange={onBuilderChange}
-            onRequestTagValues={onRequestTagValues}
-          />
-        )}
-
-        <CommandPreview value={preview} onChange={onPreviewChange} disabled={connectionLost} />
-
-        <Toolbar
-          commandLine={preview}
-          disabled={connectionLost}
-          onExecute={() => post({ command: 'executeInCli', commandLine: preview })}
-          onSendToCli={() => post({ command: 'sendToCli', commandLine: preview })}
-          ack={ack}
-        />
+      <div className={styles.header}>
+        <IndexSelector indexes={indexes} selected={selected} onChange={setSelected} />
       </div>
-    </ErrorBoundary>
+
+      {state && schema.length > 0 && (
+        <QueryBuilder
+          state={state}
+          schema={schema}
+          tagValues={tagValues}
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed((c) => !c)}
+          onChange={setState}
+          onRequestTagValues={onRequestTagValues}
+        />
+      )}
+      {selected && state && schema.length === 0 && (
+        <div className={styles.emptyHint}>Index has no schema fields.</div>
+      )}
+
+      <CommandPreview value={preview} onChange={onPreviewChange} disabled={connectionLost} />
+
+      <Toolbar
+        commandLine={preview}
+        disabled={connectionLost || preview.trim().length === 0}
+        onExecute={() => post({ command: 'executeInCli', commandLine: preview })}
+        onSendToCli={() => post({ command: 'sendToCli', commandLine: preview })}
+        ack={ack}
+      />
+    </div>
   );
 }

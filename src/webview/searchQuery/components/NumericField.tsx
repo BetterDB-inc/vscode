@@ -13,7 +13,11 @@ const ops: { value: NumericOperator; label: string }[] = [
 ];
 
 export function NumericField({ value, onChange }: Props) {
-  const num = (s: string) => (s === '' ? null : Number(s));
+  const num = (s: string) => {
+    if (s === '') return null;
+    const n = Number(s);
+    return isFinite(n) ? n : null;
+  };
   return (
     <div>
       <select
