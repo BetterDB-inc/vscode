@@ -4,7 +4,13 @@ import { KeyService } from './KeyService';
 import { KeyValue } from '../models/key.model';
 
 const COUNT_WIDTH = 10;
-const padCount = (n: number): string => String(n).padStart(COUNT_WIDTH, '0');
+const MAX_COUNT = 10 ** COUNT_WIDTH - 1;
+const padCount = (n: number): string => {
+  if (n > MAX_COUNT) {
+    throw new Error(`Export count ${n} exceeds maximum ${MAX_COUNT}`);
+  }
+  return String(n).padStart(COUNT_WIDTH, '0');
+};
 
 function escapeValue(str: string): string {
   return str

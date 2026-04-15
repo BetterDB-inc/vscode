@@ -50,6 +50,7 @@ export function registerExportCommands(
         validateInput: (v) => {
           const n = parseInt(v, 10);
           if (isNaN(n) || n < 1) return 'Must be a positive number';
+          if (n > 9_999_999_999) return 'Must be 9,999,999,999 or fewer';
           return null;
         },
       });
@@ -96,8 +97,7 @@ export function registerExportCommands(
       if (!uri) return;
       await context.globalState.update(LAST_EXPORT_DIR_KEY, path.dirname(uri.fsPath));
 
-      let exportResult: { exported: number };
-      let cancelled = false;
+      let exportResult: { exported: number; cancelled: boolean };
       try {
         exportResult = await vscode.window.withProgress(
           {
@@ -106,12 +106,14 @@ export function registerExportCommands(
             cancellable: true,
           },
           async (progress, token) => {
+            let cancelledDuringLoop = false;
             const result = await exportKeys(client, {
               keys: keysToExport,
               pattern,
               format: format.value,
               filePath: uri.fsPath,
               onProgress: (processed, total) => {
+                if (token.isCancellationRequested) cancelledDuringLoop = true;
                 progress.report({
                   message: `${processed} / ${total} keys`,
                   increment: (1 / total) * 100,
@@ -119,8 +121,7 @@ export function registerExportCommands(
               },
               cancellationToken: token,
             });
-            cancelled = token.isCancellationRequested;
-            return result;
+            return { ...result, cancelled: cancelledDuringLoop };
           }
         );
       } catch (err) {
@@ -130,10 +131,10 @@ export function registerExportCommands(
         return;
       }
 
-      const showFn = cancelled
+      const showFn = exportResult.cancelled
         ? vscode.window.showWarningMessage
         : vscode.window.showInformationMessage;
-      const summary = cancelled
+      const summary = exportResult.cancelled
         ? `Export cancelled — ${exportResult.exported} of ${keysToExport.length} keys written to ${uri.fsPath}`
         : `Exported ${exportResult.exported} keys to ${uri.fsPath}`;
       const openAction = await showFn(summary, 'Open File');
