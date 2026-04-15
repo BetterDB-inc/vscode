@@ -1,105 +1,45 @@
-import Valkey from 'iovalkey';
-import { SearchResult } from '../shared/types';
+import { IndexField, FtFieldType } from '../shared/types';
 
-export type { SearchResult };
-
-export interface QueryExecuteOptions {
-  command: string;
-  index: string;
-  query: string;
+interface RedisClient {
+  call: (...args: unknown[]) => Promise<unknown>;
 }
 
-export interface QueryExecuteResult {
-  results: SearchResult[];
-  total: number;
-  tookMs: number;
-  error?: string;
-}
-
-interface QueryCommand {
-  prefix: string;
-  execute: (client: Valkey, index: string, query: string) => Promise<unknown[]>;
-  parseResponse: (raw: unknown[]) => SearchResult[];
-}
-
-export function parseSearchResponse(raw: unknown[]): SearchResult[] {
-  if (raw.length === 0) {
-    return [];
+export class SearchQueryService {
+  async fetchIndexSchema(client: RedisClient, indexName: string): Promise<IndexField[]> {
+    const raw = await client.call('FT.INFO', indexName);
+    return parseAttributes(raw);
   }
 
-  const results: SearchResult[] = [];
-  let i = 1;
-
-  while (i < raw.length) {
-    const key = raw[i] as string;
-    const fieldEntry = raw[i + 1];
-    const fields: Record<string, string> = {};
-
-    if (Array.isArray(fieldEntry)) {
-      for (let j = 0; j + 1 < fieldEntry.length; j += 2) {
-        fields[fieldEntry[j] as string] = fieldEntry[j + 1] as string;
-      }
-    }
-
-    results.push({ key, fields });
-    i += 2;
+  async fetchTagValues(client: RedisClient, indexName: string, fieldName: string): Promise<string[]> {
+    const raw = await client.call('FT.TAGVALS', indexName, fieldName);
+    if (!Array.isArray(raw)) return [];
+    return (raw as string[]).slice();
   }
 
-  return results;
+  async listIndexes(client: RedisClient): Promise<string[]> {
+    const raw = await client.call('FT._LIST');
+    return Array.isArray(raw) ? (raw as string[]) : [];
+  }
 }
 
-const commandRegistry: QueryCommand[] = [
-  {
-    prefix: 'FT.SEARCH',
-    execute: (client: Valkey, index: string, query: string) =>
-      client.call('FT.SEARCH', index, query) as Promise<unknown[]>,
-    parseResponse: parseSearchResponse,
-  },
-];
-
-export function findCommand(commandStr: string): QueryCommand | undefined {
-  if (!commandStr) {
-    return undefined;
-  }
-  return commandRegistry.find(
-    (cmd) => cmd.prefix.toLowerCase() === commandStr.toLowerCase()
-  );
+function parseAttributes(raw: unknown): IndexField[] {
+  if (!Array.isArray(raw)) return [];
+  const idx = raw.findIndex((v, i) => i % 2 === 0 && v === 'attributes');
+  if (idx === -1) return [];
+  const list = raw[idx + 1];
+  if (!Array.isArray(list)) return [];
+  return (list as unknown[][]).map((row) => parseRow(row)).filter(Boolean) as IndexField[];
 }
 
-export function deduplicateHistory(existing: string[], newQuery: string, maxSize: number): string[] {
-  const filtered = existing.filter((q) => q !== newQuery);
-  return [newQuery, ...filtered].slice(0, maxSize);
-}
-
-export async function executeSearchQuery(
-  client: Valkey,
-  options: QueryExecuteOptions
-): Promise<QueryExecuteResult> {
-  const command = findCommand(options.command);
-
-  if (!command) {
-    return { results: [], total: 0, tookMs: 0, error: `Unknown command: ${options.command}` };
+function parseRow(row: unknown[]): IndexField | null {
+  const map: Record<string, string> = {};
+  for (let i = 0; i < row.length; i += 2) {
+    map[String(row[i])] = String(row[i + 1]);
   }
-
-  const query = options.query.trim();
-  const start = Date.now();
-
-  try {
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Query timed out after 10s')), 10_000)
-    );
-    const raw = await Promise.race([command.execute(client, options.index, query), timeout]);
-    const tookMs = Date.now() - start;
-    const results = command.parseResponse(raw);
-    const total = typeof raw[0] === 'number' ? raw[0] : parseInt(raw[0] as string, 10) || 0;
-    return { results, total, tookMs };
-  } catch (err) {
-    const tookMs = Date.now() - start;
-    return {
-      results: [],
-      total: 0,
-      tookMs,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
+  if (!map.attribute || !map.type) return null;
+  return {
+    name: map.attribute,
+    type: map.type as FtFieldType,
+    attribute: map.identifier ?? map.attribute,
+  };
 }
