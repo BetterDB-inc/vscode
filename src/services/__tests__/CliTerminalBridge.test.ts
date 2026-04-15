@@ -22,7 +22,7 @@ describe('CliTerminalBridge', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    bridge = new CliTerminalBridge(fakeVscode as typeof vscodeNs);
+    bridge = new CliTerminalBridge(fakeVscode as unknown as typeof vscodeNs);
   });
 
   it('sendAndExecute appends \\r when provider is registered', async () => {

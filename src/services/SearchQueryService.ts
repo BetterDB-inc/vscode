@@ -1,7 +1,7 @@
 import { IndexField, FtFieldType } from '../shared/types';
 
 interface RedisClient {
-  call: (...args: unknown[]) => Promise<unknown>;
+  call: (command: string, ...args: (string | number | Buffer)[]) => Promise<unknown>;
 }
 
 export class SearchQueryService {

@@ -16,3 +16,9 @@ export type ExtToWebviewMessage =
   | { command: 'selectIndex'; indexName: string };
 
 export type { BuilderState, IndexField };
+
+export interface VsCodeApi {
+  postMessage(message: WebviewToExtMessage): void;
+  getState<T = unknown>(): T | undefined;
+  setState<T = unknown>(state: T): void;
+}
