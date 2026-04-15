@@ -13,8 +13,11 @@ export function generateCommand(state: BuilderState): string {
   const clauses = state.fields
     .filter((f) => hasValue(f))
     .map((f) => clauseFor(f));
-  const body = clauses.length === 0 ? '*' : clauses.join(' ');
-  return `${state.command} ${state.indexName} ${body}`;
+  if (clauses.length === 0) {
+    return `${state.command} ${state.indexName} *`;
+  }
+  const body = clauses.join(' ').replace(/"/g, '\\"');
+  return `${state.command} ${state.indexName} "${body}"`;
 }
 
 function hasValue(f: FieldFilter): boolean {
