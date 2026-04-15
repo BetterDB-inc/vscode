@@ -216,8 +216,25 @@ export function registerExportCommands(
       if (importResult.skipped > 0) summary += `, ${importResult.skipped} skipped`;
       if (importResult.failed > 0) summary += `, ${importResult.failed} failed`;
 
-      const action = await vscode.window.showInformationMessage(summary, 'Refresh Key Browser');
-      if (action === 'Refresh Key Browser') {
+      const aborted = importResult.errors.some((e) => e.includes('import aborted'));
+      const errorCount = importResult.errors.length;
+      const buttons: string[] = [];
+      if (errorCount > 0) buttons.push('Show Details');
+      buttons.push('Refresh Key Browser');
+
+      const showFn = aborted || (importResult.imported === 0 && errorCount > 0)
+        ? vscode.window.showWarningMessage
+        : vscode.window.showInformationMessage;
+      if (errorCount > 0 && !aborted) summary += ` (${errorCount} issue${errorCount === 1 ? '' : 's'})`;
+
+      const action = await showFn(summary, ...buttons);
+      if (action === 'Show Details') {
+        const channel = vscode.window.createOutputChannel('BetterDB Import');
+        channel.appendLine(summary);
+        channel.appendLine('');
+        for (const e of importResult.errors) channel.appendLine(`- ${e}`);
+        channel.show();
+      } else if (action === 'Refresh Key Browser') {
         keyTreeProvider.refresh();
       }
     })

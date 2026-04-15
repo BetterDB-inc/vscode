@@ -125,7 +125,6 @@ async function importText(
     const key = args[0];
 
     if (!ALLOWED_IMPORT_COMMANDS.has(command)) {
-      result.failed++;
       result.errors.push(`Disallowed command "${command}" skipped for safety`);
       continue;
     }
