@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as readline from 'readline';
 import Valkey from 'iovalkey';
+import { bindValkeyCall } from './valkeyCall';
 
 export function unescapeValue(str: string): string {
   return str.replace(/\\(\\|n|r|t|")/g, (_, ch) => {
@@ -101,7 +102,7 @@ async function importText(
     crlfDelay: Infinity,
   });
 
-  const call = (client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call.bind(client);
+  const call = bindValkeyCall(client);
   const keyState = new Map<string, 'imported' | 'skipped' | 'failed'>();
   let total = 0;
   let aborted = false;

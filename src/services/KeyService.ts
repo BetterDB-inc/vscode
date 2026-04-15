@@ -4,6 +4,7 @@ import { ScanResult } from '../models/types.model';
 import { FtIndexInfo, FtFieldInfo, FtFieldType } from '../shared/types';
 import { arrayToObject } from '../utils/helpers';
 import { createError, ErrorCode } from '../utils/errors';
+import { bindValkeyCall } from './valkeyCall';
 
 export class KeyService {
   private scanLock: Promise<void> = Promise.resolve();
@@ -362,10 +363,7 @@ export class KeyService {
   }
 
   async executeCommand(command: string, ...args: string[]): Promise<unknown> {
-    return (this.client as unknown as { call: (cmd: string, ...args: string[]) => Promise<unknown> }).call(
-      command,
-      ...args
-    );
+    return bindValkeyCall(this.client)(command, ...args);
   }
 
   async getJson(key: string, path: string = '.'): Promise<string | null> {

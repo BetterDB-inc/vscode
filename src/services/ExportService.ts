@@ -90,7 +90,7 @@ export interface ExportOptions {
   pattern: string;
   format: 'text' | 'binary';
   filePath: string;
-  onProgress?: (exported: number, total: number) => void;
+  onProgress?: (processed: number, total: number) => void;
   cancellationToken?: { isCancellationRequested: boolean };
 }
 

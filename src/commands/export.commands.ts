@@ -110,9 +110,9 @@ export function registerExportCommands(
               pattern,
               format: format.value,
               filePath: uri.fsPath,
-              onProgress: (exported, total) => {
+              onProgress: (processed, total) => {
                 progress.report({
-                  message: `${exported} / ${total} keys`,
+                  message: `${processed} / ${total} keys`,
                   increment: (1 / total) * 100,
                 });
               },
