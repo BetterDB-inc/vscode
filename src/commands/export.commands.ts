@@ -55,14 +55,22 @@ export function registerExportCommands(
       if (limitInput === undefined) return;
       const parsedLimit = parseInt(limitInput, 10);
 
-      const keysToExport = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Scanning keys...', cancellable: true },
-        async (_progress, token) => {
-          return keyService.scanAllKeys(pattern, parsedLimit, () => {
-            if (token.isCancellationRequested) throw new Error('Scan cancelled');
-          });
-        }
-      );
+      let keysToExport: string[];
+      try {
+        keysToExport = await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: 'Scanning keys...', cancellable: true },
+          async (_progress, token) => {
+            return keyService.scanAllKeys(pattern, parsedLimit, () => {
+              if (token.isCancellationRequested) throw new Error('cancelled');
+            });
+          }
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg === 'cancelled') return;
+        vscode.window.showErrorMessage(`Scan failed: ${msg}`);
+        return;
+      }
 
       if (keysToExport.length === 0) {
         vscode.window.showInformationMessage(`No keys found matching "${pattern}"`);

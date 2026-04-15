@@ -35,6 +35,7 @@ export function serializeKeyAsCommands(
 
     case 'hash': {
       const fields = value as Array<{ field: string; value: string }>;
+      if (fields.length === 0) return '';
       const pairs = fields.map(f => `${q(f.field)} ${q(f.value)}`).join(' ');
       cmd = `HSET ${qk} ${pairs}\n`;
       break;
@@ -42,18 +43,21 @@ export function serializeKeyAsCommands(
 
     case 'list': {
       const elements = value as string[];
+      if (elements.length === 0) return '';
       cmd = `RPUSH ${qk} ${elements.map(q).join(' ')}\n`;
       break;
     }
 
     case 'set': {
       const members = value as string[];
+      if (members.length === 0) return '';
       cmd = `SADD ${qk} ${members.map(q).join(' ')}\n`;
       break;
     }
 
     case 'zset': {
       const members = value as Array<{ score: number; member: string }>;
+      if (members.length === 0) return '';
       const args = members.map(m => `${m.score} ${q(m.member)}`).join(' ');
       cmd = `ZADD ${qk} ${args}\n`;
       break;
@@ -61,6 +65,7 @@ export function serializeKeyAsCommands(
 
     case 'stream': {
       const entries = value as Array<{ id: string; fields: Record<string, string> }>;
+      if (entries.length === 0) return '';
       for (const entry of entries) {
         const fieldArgs = Object.entries(entry.fields).map(([f, v]) => `${q(f)} ${q(v)}`).join(' ');
         cmd += `XADD ${qk} ${entry.id} ${fieldArgs}\n`;
@@ -148,6 +153,10 @@ export async function exportKeys(
 
         const valueData = extractValueForSerialization(keyValue);
         const commands = serializeKeyAsCommands(key, keyValue.type, valueData, keyValue.ttl);
+        if (commands.length === 0) {
+          options.onProgress?.(i + 1, total);
+          continue;
+        }
         stream.write(commands);
         exported++;
 
