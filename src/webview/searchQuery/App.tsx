@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import styles from './styles.module.css';
 import { useVsCode } from './VsCodeContext';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -50,7 +50,7 @@ export function App() {
   const [connectionLost, setConnectionLost] = useState(false);
   const [ack, setAck] = useState<{ action: 'execute' | 'send'; ok: boolean; error?: string } | null>(null);
 
-  const post = (msg: WebviewToExtMessage) => vscode.postMessage(msg);
+  const post = useCallback((msg: WebviewToExtMessage) => vscode.postMessage(msg), [vscode]);
 
   useEffect(() => {
     const handler = (event: MessageEvent<ExtToWebviewMessage>) => {
@@ -81,11 +81,11 @@ export function App() {
     window.addEventListener('message', handler);
     post({ command: 'fetchIndexes' });
     return () => window.removeEventListener('message', handler);
-  }, []);
+  }, [post]);
 
   useEffect(() => {
     if (selected) post({ command: 'fetchSchema', index: selected });
-  }, [selected]);
+  }, [selected, post]);
 
   useEffect(() => {
     if (state) setPreview(generateCommand(state));

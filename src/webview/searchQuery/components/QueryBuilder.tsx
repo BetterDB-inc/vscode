@@ -1,5 +1,5 @@
 import styles from '../styles.module.css';
-import { BuilderState, FieldFilter, IndexField, FtCommand } from '../../../shared/types';
+import { BuilderState, FieldFilter, IndexField, FtCommand, TagValue, NumericValue, TextValue, GeoValue } from '../../../shared/types';
 import { TagField } from './TagField';
 import { NumericField } from './NumericField';
 import { TextField } from './TextField';
@@ -70,10 +70,10 @@ export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleColl
 
 function FieldWidget({ field, tagOptions, onChange }: { field: FieldFilter; tagOptions: string[]; onChange: (v: FieldFilter['value']) => void }) {
   switch (field.type) {
-    case 'TAG': return <TagField value={field.value as any} options={tagOptions} onChange={onChange} />;
-    case 'NUMERIC': return <NumericField value={field.value as any} onChange={onChange} />;
-    case 'TEXT': return <TextField value={field.value as any} onChange={onChange} />;
-    case 'GEO': return <GeoField value={field.value as any} onChange={onChange} />;
+    case 'TAG': return <TagField value={field.value as TagValue} options={tagOptions} onChange={onChange} />;
+    case 'NUMERIC': return <NumericField value={field.value as NumericValue} onChange={onChange} />;
+    case 'TEXT': return <TextField value={field.value as TextValue} onChange={onChange} />;
+    case 'GEO': return <GeoField value={field.value as GeoValue} onChange={onChange} />;
     case 'VECTOR': return <span style={{ opacity: 0.6 }}>VECTOR not supported in builder — type in preview</span>;
     default: return null;
   }

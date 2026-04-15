@@ -16,7 +16,7 @@ const ftInfoResponse = [
 
 describe('SearchQueryService.fetchIndexSchema', () => {
   it('parses FT.INFO into typed field list', async () => {
-    const client = { call: vi.fn().mockResolvedValue(ftInfoResponse) } as any;
+    const client = { call: vi.fn().mockResolvedValue(ftInfoResponse) };
     const svc = new SearchQueryService();
     const fields = await svc.fetchIndexSchema(client, 'idx:users');
     expect(fields).toEqual([
@@ -31,7 +31,7 @@ describe('SearchQueryService.fetchIndexSchema', () => {
 
 describe('SearchQueryService.fetchTagValues', () => {
   it('returns values from FT.TAGVALS call', async () => {
-    const client = { call: vi.fn().mockResolvedValue(['Portland', 'Seattle', 'portland']) } as any;
+    const client = { call: vi.fn().mockResolvedValue(['Portland', 'Seattle', 'portland']) };
     const svc = new SearchQueryService();
     const vals = await svc.fetchTagValues(client, 'idx:users', 'city');
     expect(vals).toEqual(['Portland', 'Seattle', 'portland']);
