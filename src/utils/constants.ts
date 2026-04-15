@@ -53,4 +53,6 @@ export const COMMANDS = {
   EDIT_TTL: 'betterdb.editTtl',
   RENAME_KEY: 'betterdb.renameKey',
   EDIT_KEY: 'betterdb.editKey',
+  EXPORT_KEYS: 'betterdb.exportKeys',
+  IMPORT_KEYS: 'betterdb.importKeys',
 } as const;

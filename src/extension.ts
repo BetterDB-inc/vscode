@@ -10,6 +10,7 @@ import {
   registerConnectionCommands,
   registerKeyCommands,
   registerCliCommands,
+  registerExportCommands,
 } from './commands';
 import { COMMANDS } from './utils/constants';
 
@@ -59,6 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerConnectionCommands(context, connectionManager, keyTreeProvider, searchTreeProvider);
   registerKeyCommands(context, connectionManager, keyTreeProvider, keyEditorProvider, searchTreeProvider);
   registerCliCommands(context, connectionManager);
+  registerExportCommands(context, connectionManager, keyTreeProvider);
 
   context.subscriptions.push(
     keyEditorProvider,
