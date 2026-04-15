@@ -1,9 +1,8 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/ConnectionManager';
-import { KeyService } from '../services/KeyService';
-import { executeSearchQuery, deduplicateHistory } from '../services/SearchQueryService';
-import { FtIndexInfo } from '../shared/types';
-import { COMMANDS } from '../utils/constants';
+import { SearchQueryService } from '../services/SearchQueryService';
+import { CliTerminalBridge } from '../services/CliTerminalBridge';
+import { WebviewToExtMessage } from '../webview/searchQuery/types';
 
 const NONCE_LENGTH = 32;
 const NONCE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -11,10 +10,13 @@ const NONCE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01
 export class SearchQueryProvider implements vscode.Disposable {
   private panels: Map<string, vscode.WebviewPanel> = new Map();
   private disposables: Map<string, vscode.Disposable[]> = new Map();
+  private selectedIndexes: Map<string, string | null> = new Map();
 
   constructor(
     private context: vscode.ExtensionContext,
-    private connectionManager: ConnectionManager
+    private connectionManager: ConnectionManager,
+    private service: SearchQueryService,
+    private bridge: CliTerminalBridge
   ) {}
 
   async openOrReveal(connectionId: string, indexName?: string): Promise<void> {
@@ -37,15 +39,8 @@ export class SearchQueryProvider implements vscode.Disposable {
       return;
     }
 
-    const keyService = new KeyService(client);
-    const indexNames = await keyService.getSearchIndexList();
-    const indexes: FtIndexInfo[] = await Promise.all(
-      indexNames.map((name) => keyService.getSearchIndexInfo(name))
-    );
-
-    const history = this.context.globalState.get<string[]>(
-      `betterdb.queryHistory.${connectionId}`
-    ) ?? [];
+    const selectedIndex = indexName ?? null;
+    this.selectedIndexes.set(connectionId, selectedIndex);
 
     const panel = vscode.window.createWebviewPanel(
       'betterdb.searchQuery',
@@ -64,50 +59,61 @@ export class SearchQueryProvider implements vscode.Disposable {
 
     const panelDisposables: vscode.Disposable[] = [];
 
-    panel.webview.html = this.getWebviewContent(panel.webview, indexes, indexName ?? null, history);
+    panel.webview.html = this.getWebviewContent(panel.webview);
 
-    const messageHandler = panel.webview.onDidReceiveMessage(async (msg: { command: string; index?: string; query?: string; key?: string }) => {
-      switch (msg.command) {
-        case 'executeQuery': {
-          try {
-            const result = await executeSearchQuery(client, {
-              command: 'FT.SEARCH',
-              index: msg.index ?? '',
-              query: msg.query ?? ''
-            });
-            panel.webview.postMessage({ command: 'queryResult', ...result });
-          } catch (err) {
-            panel.webview.postMessage({
-              command: 'queryResult',
-              results: [],
-              total: 0,
-              tookMs: 0,
-              error: err instanceof Error ? err.message : String(err)
-            });
-          }
-          break;
-        }
+    const webview = panel.webview;
 
-        case 'openKey': {
-          if (msg.key) {
-            vscode.commands.executeCommand(COMMANDS.OPEN_KEY, connectionId, msg.key);
-          }
-          break;
-        }
+    const messageHandler = webview.onDidReceiveMessage(async (msg: WebviewToExtMessage) => {
+      const activeClient = this.connectionManager.getClient(connectionId);
+      if (!activeClient) {
+        webview.postMessage({ command: 'connectionLost' });
+        return;
+      }
 
-        case 'saveHistory': {
-          if (msg.query !== undefined) {
-            const existing = this.context.globalState.get<string[]>(
-              `betterdb.queryHistory.${connectionId}`
-            ) ?? [];
-            const updated = deduplicateHistory(existing, msg.query, 100);
-            await this.context.globalState.update(
-              `betterdb.queryHistory.${connectionId}`,
-              updated
-            );
+      try {
+        switch (msg.command) {
+          case 'fetchIndexes': {
+            const indexes = await this.service.listIndexes(activeClient);
+            webview.postMessage({ command: 'init', indexes, selectedIndex: this.selectedIndexes.get(connectionId) ?? null });
+            return;
           }
-          break;
+          case 'fetchSchema': {
+            const fields = await this.service.fetchIndexSchema(activeClient, msg.index);
+            webview.postMessage({ command: 'indexSchema', index: msg.index, fields });
+            return;
+          }
+          case 'fetchTagValues': {
+            const values = await this.service.fetchTagValues(activeClient, msg.index, msg.field);
+            webview.postMessage({ command: 'tagValues', field: msg.field, values });
+            return;
+          }
+          case 'executeInCli': {
+            try {
+              await this.bridge.sendAndExecute(connectionId, msg.commandLine);
+              webview.postMessage({ command: 'cliAck', action: 'execute', ok: true });
+            } catch (err) {
+              webview.postMessage({
+                command: 'cliAck', action: 'execute', ok: false,
+                error: err instanceof Error ? err.message : 'Failed to send to CLI',
+              });
+            }
+            return;
+          }
+          case 'sendToCli': {
+            try {
+              await this.bridge.sendForEdit(connectionId, msg.commandLine);
+              webview.postMessage({ command: 'cliAck', action: 'send', ok: true });
+            } catch (err) {
+              webview.postMessage({
+                command: 'cliAck', action: 'send', ok: false,
+                error: err instanceof Error ? err.message : 'Failed to send to CLI',
+              });
+            }
+            return;
+          }
         }
+      } catch (err) {
+        console.error('SearchQueryProvider message error', err);
       }
     });
     panelDisposables.push(messageHandler);
@@ -126,12 +132,7 @@ export class SearchQueryProvider implements vscode.Disposable {
     }
   }
 
-  private getWebviewContent(
-    webview: vscode.Webview,
-    indexes: FtIndexInfo[],
-    selectedIndex: string | null,
-    history: string[]
-  ): string {
+  private getWebviewContent(webview: vscode.Webview): string {
     const nonce = this.getNonce();
 
     const scriptUri = webview.asWebviewUri(
@@ -140,10 +141,6 @@ export class SearchQueryProvider implements vscode.Disposable {
 
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'dist', 'webview', 'searchQuery.css')
-    );
-
-    const initialData = this.escapeJsonForHtml(
-      JSON.stringify({ indexes, selectedIndex, history })
     );
 
     return `<!DOCTYPE html>
@@ -157,9 +154,6 @@ export class SearchQueryProvider implements vscode.Disposable {
 </head>
 <body>
   <div id="root"></div>
-  <script nonce="${nonce}">
-    window.initialData = ${initialData};
-  </script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
@@ -173,15 +167,6 @@ export class SearchQueryProvider implements vscode.Disposable {
     return text;
   }
 
-  private escapeJsonForHtml(json: string): string {
-    return json
-      .replace(/</g, '\\u003c')
-      .replace(/>/g, '\\u003e')
-      .replace(/&/g, '\\u0026')
-      .replace(/\u2028/g, '\\u2028')
-      .replace(/\u2029/g, '\\u2029');
-  }
-
   private cleanupPanel(connectionId: string): void {
     const disposables = this.disposables.get(connectionId);
     if (disposables) {
@@ -189,6 +174,7 @@ export class SearchQueryProvider implements vscode.Disposable {
       this.disposables.delete(connectionId);
     }
     this.panels.delete(connectionId);
+    this.selectedIndexes.delete(connectionId);
   }
 
   dispose(): void {

@@ -8,6 +8,7 @@ import { KeyEditorProvider } from './providers/KeyEditorProvider';
 import { SearchQueryProvider } from './providers/SearchQueryProvider';
 import { BrandingTreeProvider } from './providers/BrandingTreeProvider';
 import { StatsViewProvider } from './providers/StatsViewProvider';
+import { SearchQueryService } from './services/SearchQueryService';
 import {
   registerConnectionCommands,
   registerKeyCommands,
@@ -29,7 +30,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const keyEditorProvider = new KeyEditorProvider(context, () => {
     keyTreeProvider.refresh();
   });
-  const searchQueryProvider = new SearchQueryProvider(context, connectionManager);
+  const searchQueryService = new SearchQueryService();
+  const searchQueryProvider = new SearchQueryProvider(context, connectionManager, searchQueryService, cliBridge);
   const statsViewProvider = new StatsViewProvider(context.extensionUri);
 
   const updateStatsClient = async () => {

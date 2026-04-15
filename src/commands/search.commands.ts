@@ -8,7 +8,7 @@ export function registerSearchCommands(
   context: vscode.ExtensionContext,
   searchQueryProvider: SearchQueryProvider,
   searchTreeProvider: SearchTreeProvider,
-  _bridge: CliTerminalBridge
+  bridge: CliTerminalBridge
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
