@@ -2,8 +2,8 @@
 
 **Lightweight Valkey database management for VS Code**
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/betterdb.betterdb-for-valkey)](https://marketplace.visualstudio.com/items?itemName=betterdb.betterdb-for-valkey)
-[![VS Code Installs](https://img.shields.io/visual-studio-marketplace/i/betterdb.betterdb-for-valkey)](https://marketplace.visualstudio.com/items?itemName=betterdb.betterdb-for-valkey)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/betterdb.betterdb-for-valkey.svg)](https://marketplace.visualstudio.com/items?itemName=betterdb.betterdb-for-valkey)
+[![VS Code Installs](https://vsmarketplacebadges.dev/installs-short/betterdb.betterdb-for-valkey.svg)](https://marketplace.visualstudio.com/items?itemName=betterdb.betterdb-for-valkey)
 [![Open VSX Downloads](https://img.shields.io/open-vsx/dt/betterdb/betterdb-for-valkey)](https://open-vsx.org/extension/betterdb/betterdb-for-valkey)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
