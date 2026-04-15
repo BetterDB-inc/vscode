@@ -1,130 +1,140 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { FtIndexInfo } from '../../shared/types';
-import { ExtensionMessage, InitialData, SearchResult } from './types';
-import { useVsCode } from './VsCodeContext';
-import { IndexSelector } from './components/IndexSelector';
-import { QueryEditor } from './components/QueryEditor';
-import { ResultsTable } from './components/ResultsTable';
-import { QueryHistory } from './components/QueryHistory';
+import { useEffect, useState } from 'react';
 import styles from './styles.module.css';
+import { useVsCode } from './VsCodeContext';
+import { ErrorBoundary } from './ErrorBoundary';
+import { IndexSelector } from './components/IndexSelector';
+import { QueryBuilder } from './components/QueryBuilder';
+import { CommandPreview } from './components/CommandPreview';
+import { Toolbar } from './components/Toolbar';
+import { generateCommand } from './services/queryGenerator';
+import { BuilderState, FtIndexInfo, IndexField, FieldFilter, FtFieldType } from '../../shared/types';
+import { ExtToWebviewMessage, WebviewToExtMessage } from './types';
 
-interface Props {
-  initialData: InitialData;
-}
+const emptyValueFor = (t: FtFieldType): FieldFilter['value'] => {
+  switch (t) {
+    case 'TAG': return { selected: [] };
+    case 'NUMERIC': return { operator: 'eq', value1: null, value2: null };
+    case 'TEXT': return { term: '' };
+    case 'GEO': return { lon: null, lat: null, radius: null, unit: 'km' };
+    case 'VECTOR': return { selected: [] };
+    default: return { selected: [] };
+  }
+};
 
-export const App: React.FC<Props> = ({ initialData }) => {
+const buildInitialState = (indexName: string, schema: IndexField[]): BuilderState => ({
+  indexName,
+  command: 'FT.SEARCH',
+  fields: schema.map((f) => ({ name: f.name, type: f.type, enabled: false, value: emptyValueFor(f.type) })),
+  modified: false,
+});
+
+const toIndexInfo = (name: string): FtIndexInfo => ({
+  name,
+  numDocs: 0,
+  indexingState: 'indexed',
+  percentIndexed: 100,
+  fields: [],
+  indexOn: 'HASH',
+  prefixes: [],
+});
+
+export function App() {
   const vscode = useVsCode();
+  const [indexes, setIndexes] = useState<FtIndexInfo[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [schema, setSchema] = useState<IndexField[]>([]);
+  const [tagValues, setTagValues] = useState<Record<string, string[]>>({});
+  const [state, setState] = useState<BuilderState | null>(null);
+  const [preview, setPreview] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
+  const [connectionLost, setConnectionLost] = useState(false);
+  const [ack, setAck] = useState<{ action: 'execute' | 'send'; ok: boolean; error?: string } | null>(null);
 
-  const [indexes, setIndexes] = useState<FtIndexInfo[]>(initialData.indexes ?? []);
-  const [selectedIndex, setSelectedIndex] = useState<string | null>(initialData.selectedIndex ?? null);
-  const [query, setQuery] = useState('');
-  const [history, setHistory] = useState<string[]>(initialData.history ?? []);
-  const [results, setResults] = useState<SearchResult[] | null>(null);
-  const [total, setTotal] = useState(0);
-  const [tookMs, setTookMs] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [connected, setConnected] = useState(true);
-  const pendingQueryRef = useRef<string>('');
+  const post = (msg: WebviewToExtMessage) => vscode.postMessage(msg);
 
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      const msg = event.data as ExtensionMessage;
+    const handler = (event: MessageEvent<ExtToWebviewMessage>) => {
+      const msg = event.data;
       switch (msg.command) {
         case 'init':
-          setIndexes(msg.indexes);
-          setSelectedIndex(msg.selectedIndex);
-          setHistory(msg.history);
+          setIndexes(msg.indexes.map(toIndexInfo));
+          if (msg.selectedIndex) setSelected(msg.selectedIndex);
           break;
-        case 'queryResult':
-          setResults(msg.results);
-          setTotal(msg.total);
-          setTookMs(msg.tookMs);
-          setError(msg.error ?? null);
-          setLoading(false);
-          if (!msg.error) {
-            vscode.postMessage({ command: 'saveHistory', query: pendingQueryRef.current });
-          }
+        case 'indexSchema':
+          setSchema(msg.fields);
+          setState(buildInitialState(msg.index, msg.fields));
+          break;
+        case 'tagValues':
+          setTagValues((tv) => ({ ...tv, [msg.field]: msg.values }));
+          break;
+        case 'cliAck':
+          setAck({ action: msg.action, ok: msg.ok, error: msg.error });
           break;
         case 'connectionLost':
-          setConnected(false);
+          setConnectionLost(true);
           break;
         case 'selectIndex':
-          setSelectedIndex(msg.indexName);
+          setSelected(msg.indexName);
           break;
       }
     };
     window.addEventListener('message', handler);
+    post({ command: 'fetchIndexes' });
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  const runQuery = () => {
-    if (!selectedIndex || !query.trim() || loading || !connected) {
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    pendingQueryRef.current = query.trim();
-    vscode.postMessage({ command: 'executeQuery', index: selectedIndex, query: query.trim() });
+  useEffect(() => {
+    if (selected) post({ command: 'fetchSchema', index: selected });
+  }, [selected]);
+
+  useEffect(() => {
+    if (state) setPreview(generateCommand(state));
+  }, [state]);
+
+  const onBuilderChange = (next: BuilderState) => {
+    setState(next);
   };
 
-  const handleKeyClick = (key: string) => {
-    vscode.postMessage({ command: 'openKey', key });
+  const onPreviewChange = (next: string, manual: boolean) => {
+    setPreview(next);
+    if (manual && state) setState({ ...state, modified: true });
   };
 
-  const handleHistorySelect = (q: string) => {
-    setQuery(q);
+  const onRequestTagValues = (field: string) => {
+    if (selected) post({ command: 'fetchTagValues', index: selected, field });
   };
 
   return (
-    <div className={styles.container}>
-      {!connected && (
-        <div className={styles.connectionLost}>Connection lost</div>
-      )}
+    <ErrorBoundary>
+      <div className={styles.app}>
+        {connectionLost && <div className={styles.banner}>Connection lost. Reconnect to continue.</div>}
 
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarRow}>
-          <span className={styles.indexLabel}>Index:</span>
-          <IndexSelector indexes={indexes} selected={selectedIndex} onChange={setSelectedIndex} />
-          <QueryHistory history={history} onSelect={handleHistorySelect} />
-          <button
-            className={styles.runBtn}
-            onClick={runQuery}
-            disabled={!selectedIndex || !query.trim() || loading || !connected}
-          >
-            {loading ? 'Running…' : 'Run Query ↵'}
-          </button>
-          {results !== null && !error && (
-            <span className={styles.resultsMeta}>
-              {total} result{total !== 1 ? 's' : ''}, {tookMs}ms
-            </span>
-          )}
+        <div className={styles.header}>
+          <IndexSelector indexes={indexes} selected={selected} onChange={setSelected} />
         </div>
-      </div>
 
-      <QueryEditor
-        value={query}
-        onChange={setQuery}
-        onRun={runQuery}
-        disabled={loading || !connected}
-      />
-
-      <div className={styles.resultsArea}>
-        {error && <div className={styles.errorBox}>{error}</div>}
-        {results !== null && !error && (
-          <ResultsTable
-            results={results}
-            total={total}
-            tookMs={tookMs}
-            onKeyClick={handleKeyClick}
+        {state && schema.length > 0 && (
+          <QueryBuilder
+            state={state}
+            schema={schema}
+            tagValues={tagValues}
+            collapsed={collapsed}
+            onToggleCollapsed={() => setCollapsed((c) => !c)}
+            onChange={onBuilderChange}
+            onRequestTagValues={onRequestTagValues}
           />
         )}
-        {results === null && !error && (
-          <div className={styles.placeholder}>
-            Enter a query and press Run Query or Ctrl+Enter
-          </div>
-        )}
+
+        <CommandPreview value={preview} onChange={onPreviewChange} disabled={connectionLost} />
+
+        <Toolbar
+          commandLine={preview}
+          disabled={connectionLost}
+          onExecute={() => post({ command: 'executeInCli', commandLine: preview })}
+          onSendToCli={() => post({ command: 'sendToCli', commandLine: preview })}
+          ack={ack}
+        />
       </div>
-    </div>
+    </ErrorBoundary>
   );
-};
+}
