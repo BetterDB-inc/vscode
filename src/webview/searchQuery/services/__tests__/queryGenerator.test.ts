@@ -112,11 +112,18 @@ describe('generateCommand', () => {
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });
 
-  it('TAG escapes pipes, braces, hyphens and spaces', () => {
+  it('TAG escapes only parsing-critical chars (pipe, brace, comma, backslash, whitespace, quote)', () => {
     const state = baseState({
       fields: [{ name: 'city', type: 'TAG', value: { selected: ['San Francisco', 'a|b', 'first-class'] } }],
     });
-    expect(generateCommand(state)).toBe('FT.SEARCH idx:users "@city:{San\\ Francisco|a\\|b|first\\-class}"');
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users "@city:{San\\ Francisco|a\\|b|first-class}"');
+  });
+
+  it('TAG does not escape dots, @, hyphens in emails', () => {
+    const state = baseState({
+      fields: [{ name: 'email', type: 'TAG', value: { selected: ['garth.pouros@yahoo.com'] } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users "@email:{garth.pouros@yahoo.com}"');
   });
 
   it('TEXT escapes embedded quotes and backslashes', () => {
