@@ -92,7 +92,7 @@
 
 .field {
   display: grid;
-  grid-template-columns: 24px 120px 1fr;
+  grid-template-columns: 160px 1fr;
   align-items: center;
   gap: 8px;
 }
@@ -103,9 +103,39 @@
 }
 
 .fieldType {
-  font-size: 11px;
-  opacity: 0.7;
-  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.3px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.fieldType_TEXT {
+  background: var(--vscode-charts-blue, #3794ff);
+  color: #fff;
+}
+.fieldType_TAG {
+  background: var(--vscode-charts-green, #89d185);
+  color: #000;
+}
+.fieldType_NUMERIC {
+  background: var(--vscode-charts-orange, #d18616);
+  color: #fff;
+}
+.fieldType_GEO {
+  background: var(--vscode-charts-purple, #b180d7);
+  color: #fff;
+}
+.fieldType_VECTOR {
+  background: var(--vscode-charts-red, #f14c4c);
+  color: #fff;
+}
+.fieldType_GEOSHAPES {
+  background: var(--vscode-charts-yellow, #cca700);
+  color: #000;
 }
 
 .preview {

@@ -60,20 +60,17 @@ export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleColl
       </div>
 
       {state.command !== 'FT.INFO' && state.fields.map((field, idx) => (
-        <div key={field.name} className={styles.field}>
-          <input
-            type="checkbox"
-            checked={field.enabled}
-            aria-label={`Enable ${field.name}`}
-            onChange={(e) => {
-              setField(idx, { enabled: e.target.checked });
-              if (e.target.checked && field.type === 'TAG' && !tagValues[field.name]) {
-                onRequestTagValues(field.name);
-              }
-            }}
-          />
+        <div
+          key={field.name}
+          className={styles.field}
+          onFocusCapture={() => {
+            if (field.type === 'TAG' && !tagValues[field.name]) {
+              onRequestTagValues(field.name);
+            }
+          }}
+        >
           <span className={styles.fieldName}>
-            {field.name}<span className={styles.fieldType}>{field.type}</span>
+            {field.name}<span className={`${styles.fieldType} ${styles[`fieldType_${field.type}`] ?? ''}`}>{field.type}</span>
           </span>
           <FieldWidget
             field={field}

@@ -11,89 +11,82 @@ const baseState = (overrides: Partial<BuilderState> = {}): BuilderState => ({
 });
 
 describe('generateCommand', () => {
-  it('produces match-all when no fields enabled', () => {
+  it('produces match-all when no fields have values', () => {
     expect(generateCommand(baseState())).toBe('FT.SEARCH idx:users *');
-  });
-
-  it('skips disabled fields', () => {
-    const state = baseState({
-      fields: [{ name: 'city', type: 'TAG', enabled: false, value: { selected: ['Portland'] } }],
-    });
-    expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });
 
   it('TAG field: OR-joins selected values', () => {
     const state = baseState({
-      fields: [{ name: 'city', type: 'TAG', enabled: true, value: { selected: ['Portland', 'Seattle'] } }],
+      fields: [{ name: 'city', type: 'TAG', value: { selected: ['Portland', 'Seattle'] } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @city:{Portland|Seattle}');
   });
 
   it('NUMERIC between', () => {
     const state = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'between', value1: 18, value2: 30 } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'between', value1: 18, value2: 30 } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @age:[18 30]');
   });
 
   it('NUMERIC eq', () => {
     const state = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'eq', value1: 25, value2: null } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'eq', value1: 25, value2: null } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @age:[25 25]');
   });
 
   it('NUMERIC gt uses exclusive lower bound', () => {
     const state = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'gt', value1: 18, value2: null } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'gt', value1: 18, value2: null } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @age:[(18 +inf]');
   });
 
   it('NUMERIC gte', () => {
     const state = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'gte', value1: 18, value2: null } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'gte', value1: 18, value2: null } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @age:[18 +inf]');
   });
 
   it('NUMERIC lt / lte', () => {
     const lt = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'lt', value1: 65, value2: null } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'lt', value1: 65, value2: null } }],
     });
     expect(generateCommand(lt)).toBe('FT.SEARCH idx:users @age:[-inf (65]');
     const lte = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'lte', value1: 65, value2: null } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'lte', value1: 65, value2: null } }],
     });
     expect(generateCommand(lte)).toBe('FT.SEARCH idx:users @age:[-inf 65]');
   });
 
   it('TEXT plain term', () => {
     const state = baseState({
-      fields: [{ name: 'bio', type: 'TEXT', enabled: true, value: { term: 'engineer' } }],
+      fields: [{ name: 'bio', type: 'TEXT', value: { term: 'engineer' } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @bio:engineer');
   });
 
   it('TEXT phrase with spaces is quoted', () => {
     const state = baseState({
-      fields: [{ name: 'bio', type: 'TEXT', enabled: true, value: { term: 'senior engineer' } }],
+      fields: [{ name: 'bio', type: 'TEXT', value: { term: 'senior engineer' } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @bio:"senior engineer"');
   });
 
   it('GEO field', () => {
     const state = baseState({
-      fields: [{ name: 'loc', type: 'GEO', enabled: true, value: { lon: -122.4, lat: 45.5, radius: 50, unit: 'km' } }],
+      fields: [{ name: 'loc', type: 'GEO', value: { lon: -122.4, lat: 45.5, radius: 50, unit: 'km' } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @loc:[-122.4 45.5 50 km]');
   });
 
-  it('joins multiple enabled fields with implicit AND (space)', () => {
+  it('joins multiple fields with implicit AND (space)', () => {
     const state = baseState({
       fields: [
-        { name: 'city', type: 'TAG', enabled: true, value: { selected: ['Portland'] } },
-        { name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'gte', value1: 18, value2: null } },
+        { name: 'city', type: 'TAG', value: { selected: ['Portland'] } },
+        { name: 'age', type: 'NUMERIC', value: { operator: 'gte', value1: 18, value2: null } },
       ],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @city:{Portland} @age:[18 +inf]');
@@ -112,8 +105,8 @@ describe('generateCommand', () => {
   it('skips fields with empty values', () => {
     const state = baseState({
       fields: [
-        { name: 'city', type: 'TAG', enabled: true, value: { selected: [] } },
-        { name: 'bio', type: 'TEXT', enabled: true, value: { term: '' } },
+        { name: 'city', type: 'TAG', value: { selected: [] } },
+        { name: 'bio', type: 'TEXT', value: { term: '' } },
       ],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
@@ -121,35 +114,35 @@ describe('generateCommand', () => {
 
   it('TAG escapes pipes, braces, hyphens and spaces', () => {
     const state = baseState({
-      fields: [{ name: 'city', type: 'TAG', enabled: true, value: { selected: ['San Francisco', 'a|b', 'first-class'] } }],
+      fields: [{ name: 'city', type: 'TAG', value: { selected: ['San Francisco', 'a|b', 'first-class'] } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @city:{San\\ Francisco|a\\|b|first\\-class}');
   });
 
   it('TEXT escapes embedded quotes and backslashes', () => {
     const state = baseState({
-      fields: [{ name: 'bio', type: 'TEXT', enabled: true, value: { term: 'she said "hi"' } }],
+      fields: [{ name: 'bio', type: 'TEXT', value: { term: 'she said "hi"' } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users @bio:"she said \\"hi\\""');
   });
 
   it('NUMERIC between with min > max is skipped', () => {
     const state = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'between', value1: 30, value2: 18 } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'between', value1: 30, value2: 18 } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });
 
   it('NUMERIC with NaN value is skipped', () => {
     const state = baseState({
-      fields: [{ name: 'age', type: 'NUMERIC', enabled: true, value: { operator: 'eq', value1: NaN, value2: null } }],
+      fields: [{ name: 'age', type: 'NUMERIC', value: { operator: 'eq', value1: NaN, value2: null } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });
 
   it('GEO with negative radius is skipped', () => {
     const state = baseState({
-      fields: [{ name: 'loc', type: 'GEO', enabled: true, value: { lon: 0, lat: 0, radius: -5, unit: 'km' } }],
+      fields: [{ name: 'loc', type: 'GEO', value: { lon: 0, lat: 0, radius: -5, unit: 'km' } }],
     });
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });

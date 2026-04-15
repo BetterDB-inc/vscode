@@ -11,7 +11,7 @@ export function generateCommand(state: BuilderState): string {
     return `FT.INFO ${state.indexName}`;
   }
   const clauses = state.fields
-    .filter((f) => f.enabled && hasValue(f))
+    .filter((f) => hasValue(f))
     .map((f) => clauseFor(f));
   const body = clauses.length === 0 ? '*' : clauses.join(' ');
   return `${state.command} ${state.indexName} ${body}`;

@@ -31,7 +31,6 @@ export type FieldValue = TagValue | NumericValue | TextValue | GeoValue;
 export interface FieldFilter {
   name: string;
   type: FtFieldType;
-  enabled: boolean;
   value: FieldValue;
 }
 
