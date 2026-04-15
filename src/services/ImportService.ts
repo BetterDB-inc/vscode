@@ -246,7 +246,7 @@ async function importBinary(
     const ttl = parsed.ttl as number;
     const dumpBase64 = parsed.dump as string;
 
-    if (!key || !dumpBase64) {
+    if (typeof key !== 'string' || !dumpBase64) {
       result.failed++;
       result.errors.push(`Invalid entry: missing key or dump data`);
       continue;
