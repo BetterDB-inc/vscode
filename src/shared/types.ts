@@ -6,6 +6,7 @@ export interface IndexField {
   name: string;
   type: FtFieldType;
   attribute?: string;
+  flags?: string[];
 }
 
 export interface TagValue { selected: string[]; }

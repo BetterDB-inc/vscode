@@ -126,6 +126,24 @@ describe('SearchQueryService.fetchIndexSchema robustness', () => {
     const svc = new SearchQueryService();
     await expect(svc.fetchIndexSchema(client, 'x')).rejects.toThrow(/attributes value/);
   });
+
+  it('captures standalone flag tokens like WITHSUFFIXTRIE and SORTABLE', async () => {
+    const reply = [
+      'attributes', [
+        ['identifier', 'name', 'attribute', 'name', 'type', 'TEXT', 'WEIGHT', '2', 'SORTABLE', 'WITHSUFFIXTRIE'],
+        ['identifier', 'city', 'attribute', 'city', 'type', 'TAG', 'SEPARATOR', ',', 'NOINDEX'],
+        ['identifier', 'age',  'attribute', 'age',  'type', 'NUMERIC', 'SORTABLE'],
+      ],
+    ];
+    const client = { call: vi.fn().mockResolvedValue(reply) };
+    const svc = new SearchQueryService();
+    const fields = await svc.fetchIndexSchema(client, 'idx:x');
+    expect(fields).toEqual([
+      { name: 'name', type: 'TEXT', attribute: 'name', flags: ['SORTABLE', 'WITHSUFFIXTRIE'] },
+      { name: 'city', type: 'TAG',  attribute: 'city', flags: ['NOINDEX'] },
+      { name: 'age',  type: 'NUMERIC', attribute: 'age', flags: ['SORTABLE'] },
+    ]);
+  });
 });
 
 describe('parseSearchResponse', () => {

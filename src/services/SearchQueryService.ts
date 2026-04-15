@@ -133,11 +133,27 @@ function parseAttributes(raw: unknown): IndexField[] {
   return [];
 }
 
+const FLAG_TOKENS: ReadonlySet<string> = new Set([
+  'SORTABLE', 'UNF', 'NOINDEX', 'NOSTEM', 'CASESENSITIVE',
+  'WITHSUFFIXTRIE', 'INDEXEMPTY', 'INDEXMISSING',
+]);
+
 function parseRow(row: unknown): IndexField | null {
   if (!Array.isArray(row)) return null;
   const map: Record<string, string> = {};
-  for (let i = 0; i < row.length - 1; i += 2) {
-    map[toStr(row[i])] = toStr(row[i + 1]);
+  const flags: string[] = [];
+  let i = 0;
+  while (i < row.length) {
+    const token = toStr(row[i]);
+    if (FLAG_TOKENS.has(token)) {
+      flags.push(token);
+      i += 1;
+    } else if (i + 1 < row.length) {
+      map[token] = toStr(row[i + 1]);
+      i += 2;
+    } else {
+      i += 1;
+    }
   }
   if (!map.attribute || !map.type) return null;
   if (!KNOWN_TYPES.has(map.type)) return null;
@@ -145,5 +161,6 @@ function parseRow(row: unknown): IndexField | null {
     name: map.attribute,
     type: map.type as FtFieldType,
     attribute: map.identifier ?? map.attribute,
+    flags: flags.length > 0 ? flags : undefined,
   };
 }

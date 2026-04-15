@@ -96,6 +96,19 @@ export function App() {
     if (state) setPreview(generateCommand(state));
   }, [state]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        if (!connectionLost && preview.trim().length > 0) {
+          post({ command: 'executeQuery', commandLine: preview });
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview, connectionLost, post]);
+
   const onPreviewChange = (next: string, manual: boolean) => {
     setPreview(next);
     if (manual && state) setState({ ...state, modified: true });
