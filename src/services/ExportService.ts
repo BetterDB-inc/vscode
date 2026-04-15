@@ -213,10 +213,6 @@ export async function exportKeys(
     });
   }
 
-  if (streamErr) {
-    throw streamErr;
-  }
-
   if (exported !== total) {
     const finalHeader = options.format === 'text'
       ? makeTextHeader(exported)
