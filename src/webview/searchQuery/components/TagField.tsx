@@ -38,8 +38,13 @@ export function TagField({ value, options, onChange }: Props) {
         className={styles.input}
         list={listId}
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          if (options.includes(next)) add(next);
+        }}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(draft); } }}
+        onBlur={() => { if (draft.trim()) add(draft); }}
         placeholder="Add value…"
         aria-label="Add tag value"
       />
