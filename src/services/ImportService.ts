@@ -60,6 +60,10 @@ export function parseCommand(line: string): { command: string; args: string[] } 
   return { command, args: tokens.slice(1) };
 }
 
+const ALLOWED_IMPORT_COMMANDS: ReadonlySet<string> = new Set([
+  'SET', 'HSET', 'RPUSH', 'SADD', 'ZADD', 'XADD', 'EXPIRE', 'JSON.SET',
+]);
+
 export type ConflictStrategy = 'skip' | 'overwrite' | 'abort';
 
 export interface ImportOptions {
@@ -119,6 +123,12 @@ async function importText(
 
     const { command, args } = parsed;
     const key = args[0];
+
+    if (!ALLOWED_IMPORT_COMMANDS.has(command)) {
+      result.failed++;
+      result.errors.push(`Disallowed command "${command}" skipped for safety`);
+      continue;
+    }
 
     if (command === 'EXPIRE' && args.length === 2) {
       if (keyState.get(key) !== 'imported') continue;
@@ -221,8 +231,8 @@ async function importBinary(
 
     // Parse header
     if (isFirstLine && parsed._header) {
-      const header = parsed._header as { count?: number };
-      total = header.count ?? 0;
+      const header = parsed._header as { count?: number | string };
+      total = Number(header.count) || 0;
       isFirstLine = false;
       continue;
     }

@@ -127,20 +127,21 @@ export class KeyService {
       case 'hash': {
         const hashData = await this.client.hgetall(key);
         const fields = Object.entries(hashData).map(([field, value]) => ({ field, value }));
-        const total = complete ? fields.length : await this.client.hlen(key);
         return {
           key,
           type: 'hash',
           ttl,
-          value: { type: 'hash', fields, total },
+          value: { type: 'hash', fields, total: fields.length },
         };
       }
 
       case 'list': {
-        const elements = complete
-          ? await this.client.lrange(key, 0, -1)
-          : await this.client.lrange(key, start, end);
-        const total = complete ? elements.length : await this.client.llen(key);
+        const [elements, total] = complete
+          ? await this.client.lrange(key, 0, -1).then((els) => [els, els.length] as const)
+          : await Promise.all([
+              this.client.lrange(key, start, end),
+              this.client.llen(key),
+            ]);
         return {
           key,
           type: 'list',
@@ -150,10 +151,12 @@ export class KeyService {
       }
 
       case 'set': {
-        const members = complete
-          ? await this.client.smembers(key)
-          : (await this.client.sscan(key, 0, 'COUNT', count))[1];
-        const total = complete ? members.length : await this.client.scard(key);
+        const [members, total] = complete
+          ? await this.client.smembers(key).then((m) => [m, m.length] as const)
+          : await Promise.all([
+              this.client.sscan(key, 0, 'COUNT', count).then((r) => r[1]),
+              this.client.scard(key),
+            ]);
         return {
           key,
           type: 'set',
@@ -163,14 +166,17 @@ export class KeyService {
       }
 
       case 'zset': {
-        const raw = complete
-          ? await this.client.zrange(key, 0, -1, 'WITHSCORES')
-          : await this.client.zrange(key, start, end, 'WITHSCORES');
+        const [raw, zsetCard] = complete
+          ? await this.client.zrange(key, 0, -1, 'WITHSCORES').then((r) => [r, -1] as const)
+          : await Promise.all([
+              this.client.zrange(key, start, end, 'WITHSCORES'),
+              this.client.zcard(key),
+            ]);
         const members: Array<{ member: string; score: number }> = [];
         for (let i = 0; i < raw.length; i += 2) {
           members.push({ member: raw[i], score: parseFloat(raw[i + 1]) });
         }
-        const total = complete ? members.length : await this.client.zcard(key);
+        const total = complete ? members.length : zsetCard;
         return {
           key,
           type: 'zset',
@@ -180,10 +186,13 @@ export class KeyService {
       }
 
       case 'stream': {
-        const streamEntries = complete
-          ? await this.client.xrange(key, '-', '+')
-          : await this.client.xrange(key, '-', '+', 'COUNT', count);
-        const length = complete ? streamEntries.length : await this.client.xlen(key);
+        const [streamEntries, streamLen] = complete
+          ? await this.client.xrange(key, '-', '+').then((e) => [e, -1] as const)
+          : await Promise.all([
+              this.client.xrange(key, '-', '+', 'COUNT', count),
+              this.client.xlen(key),
+            ]);
+        const length = complete ? streamEntries.length : streamLen;
         return {
           key,
           type: 'stream',

@@ -3,6 +3,9 @@ import Valkey from 'iovalkey';
 import { KeyService } from './KeyService';
 import { KeyValue } from '../models/key.model';
 
+const COUNT_WIDTH = 10;
+const padCount = (n: number): string => String(n).padStart(COUNT_WIDTH, '0');
+
 function escapeValue(str: string): string {
   return str
     .replace(/\\/g, '\\\\')
@@ -101,9 +104,23 @@ export async function exportKeys(
     streamErr = err;
   });
 
+  const exportDate = new Date().toISOString();
+  const makeTextHeader = (count: number) =>
+    `# BetterDB Export | ${options.pattern} | ${exportDate} | ${padCount(count)} keys\n`;
+  const makeBinaryHeader = (count: number) =>
+    JSON.stringify({
+      _header: {
+        version: 1,
+        source: 'betterdb',
+        date: exportDate,
+        pattern: options.pattern,
+        count: padCount(count),
+      },
+    }) + '\n';
+
   try {
     if (options.format === 'text') {
-      stream.write(`# BetterDB Export | ${options.pattern} | ${new Date().toISOString()} | ${total} keys\n`);
+      stream.write(makeTextHeader(total));
 
       // TODO: extend text-format support to module-backed key types.
       // Currently only the 7 core types plus RedisJSON are serialized as
@@ -137,16 +154,7 @@ export async function exportKeys(
         options.onProgress?.(i + 1, total);
       }
     } else {
-      const header = JSON.stringify({
-        _header: {
-          version: 1,
-          source: 'betterdb',
-          date: new Date().toISOString(),
-          pattern: options.pattern,
-          count: total,
-        },
-      });
-      stream.write(header + '\n');
+      stream.write(makeBinaryHeader(total));
 
       for (let i = 0; i < total; i++) {
         if (options.cancellationToken?.isCancellationRequested) break;
@@ -186,6 +194,19 @@ export async function exportKeys(
 
   if (streamErr) {
     throw streamErr;
+  }
+
+  if (exported !== total) {
+    const finalHeader = options.format === 'text'
+      ? makeTextHeader(exported)
+      : makeBinaryHeader(exported);
+    const fh = await fs.promises.open(options.filePath, 'r+');
+    try {
+      const buf = Buffer.from(finalHeader, 'utf-8');
+      await fh.write(buf, 0, buf.length, 0);
+    } finally {
+      await fh.close();
+    }
   }
 
   return { exported };
