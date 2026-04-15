@@ -100,133 +100,20 @@ export class KeyService {
     };
   }
 
-  async getValue(key: string, options?: { start?: number; end?: number }): Promise<KeyValue | null> {
+  async getValue(
+    key: string,
+    options?: { start?: number; end?: number; complete?: boolean }
+  ): Promise<KeyValue | null> {
     const type = await this.client.type(key);
     if (type === 'none') {
       return null;
     }
 
     const ttl = await this.client.ttl(key);
+    const complete = options?.complete ?? false;
     const start = options?.start ?? 0;
     const end = options?.end ?? 99;
-
-    switch (type) {
-      case 'string':
-        return {
-          key,
-          type: 'string',
-          value: { type: 'string', value: (await this.client.get(key)) || '' },
-          ttl,
-        };
-
-      case 'hash': {
-        const [hashLen, hashData] = await Promise.all([
-          this.client.hlen(key),
-          this.client.hgetall(key),
-        ]);
-        return {
-          key,
-          type: 'hash',
-          ttl,
-          value: {
-            type: 'hash',
-            fields: Object.entries(hashData).map(([field, value]) => ({ field, value })),
-            total: hashLen,
-          },
-        };
-      }
-
-      case 'list': {
-        const [listLen, listElements] = await Promise.all([
-          this.client.llen(key),
-          this.client.lrange(key, start, end),
-        ]);
-        return {
-          key,
-          type: 'list',
-          ttl,
-          value: { type: 'list', elements: listElements, total: listLen },
-        };
-      }
-
-      case 'set': {
-        const setLen = await this.client.scard(key);
-        const setMembers = await this.client.sscan(key, 0, 'COUNT', end - start + 1);
-        return {
-          key,
-          type: 'set',
-          ttl,
-          value: { type: 'set', members: setMembers[1], total: setLen },
-        };
-      }
-
-      case 'zset': {
-        const [zsetLen, zsetMembers] = await Promise.all([
-          this.client.zcard(key),
-          this.client.zrange(key, start, end, 'WITHSCORES'),
-        ]);
-        const members: Array<{ member: string; score: number }> = [];
-        for (let i = 0; i < zsetMembers.length; i += 2) {
-          members.push({
-            member: zsetMembers[i],
-            score: parseFloat(zsetMembers[i + 1]),
-          });
-        }
-        return {
-          key,
-          type: 'zset',
-          ttl,
-          value: { type: 'zset', members, total: zsetLen },
-        };
-      }
-
-      case 'stream': {
-        const [streamLen, streamEntries] = await Promise.all([
-          this.client.xlen(key),
-          this.client.xrange(key, '-', '+', 'COUNT', end - start + 1),
-        ]);
-        return {
-          key,
-          type: 'stream',
-          ttl,
-          value: {
-            type: 'stream',
-            entries: streamEntries.map(([id, fields]) => ({
-              id,
-              fields: arrayToObject(fields as string[]),
-            })),
-            length: streamLen,
-          },
-        };
-      }
-
-      case 'ReJSON-RL': {
-        const jsonValue = await this.getJson(key);
-        return {
-          key,
-          type: 'json',
-          ttl,
-          value: { type: 'json', value: jsonValue || '{}' },
-        };
-      }
-
-      default:
-        return {
-          key,
-          type: 'unknown',
-          value: { type: 'string', value: '[Unknown type]' },
-          ttl,
-        };
-    }
-  }
-
-  async getCompleteValue(key: string): Promise<KeyValue | null> {
-    const type = await this.client.type(key);
-    if (type === 'none') {
-      return null;
-    }
-
-    const ttl = await this.client.ttl(key);
+    const count = end - start + 1;
 
     switch (type) {
       case 'string':
@@ -240,50 +127,63 @@ export class KeyService {
       case 'hash': {
         const hashData = await this.client.hgetall(key);
         const fields = Object.entries(hashData).map(([field, value]) => ({ field, value }));
+        const total = complete ? fields.length : await this.client.hlen(key);
         return {
           key,
           type: 'hash',
           ttl,
-          value: { type: 'hash', fields, total: fields.length },
+          value: { type: 'hash', fields, total },
         };
       }
 
       case 'list': {
-        const elements = await this.client.lrange(key, 0, -1);
+        const elements = complete
+          ? await this.client.lrange(key, 0, -1)
+          : await this.client.lrange(key, start, end);
+        const total = complete ? elements.length : await this.client.llen(key);
         return {
           key,
           type: 'list',
           ttl,
-          value: { type: 'list', elements, total: elements.length },
+          value: { type: 'list', elements, total },
         };
       }
 
       case 'set': {
-        const members = await this.client.smembers(key);
+        const members = complete
+          ? await this.client.smembers(key)
+          : (await this.client.sscan(key, 0, 'COUNT', count))[1];
+        const total = complete ? members.length : await this.client.scard(key);
         return {
           key,
           type: 'set',
           ttl,
-          value: { type: 'set', members, total: members.length },
+          value: { type: 'set', members, total },
         };
       }
 
       case 'zset': {
-        const raw = await this.client.zrange(key, 0, -1, 'WITHSCORES');
+        const raw = complete
+          ? await this.client.zrange(key, 0, -1, 'WITHSCORES')
+          : await this.client.zrange(key, start, end, 'WITHSCORES');
         const members: Array<{ member: string; score: number }> = [];
         for (let i = 0; i < raw.length; i += 2) {
           members.push({ member: raw[i], score: parseFloat(raw[i + 1]) });
         }
+        const total = complete ? members.length : await this.client.zcard(key);
         return {
           key,
           type: 'zset',
           ttl,
-          value: { type: 'zset', members, total: members.length },
+          value: { type: 'zset', members, total },
         };
       }
 
       case 'stream': {
-        const streamEntries = await this.client.xrange(key, '-', '+');
+        const streamEntries = complete
+          ? await this.client.xrange(key, '-', '+')
+          : await this.client.xrange(key, '-', '+', 'COUNT', count);
+        const length = complete ? streamEntries.length : await this.client.xlen(key);
         return {
           key,
           type: 'stream',
@@ -294,7 +194,7 @@ export class KeyService {
               id,
               fields: arrayToObject(fields as string[]),
             })),
-            length: streamEntries.length,
+            length,
           },
         };
       }
@@ -317,6 +217,10 @@ export class KeyService {
           value: { type: 'string', value: '[Unknown type]' },
         };
     }
+  }
+
+  async getCompleteValue(key: string): Promise<KeyValue | null> {
+    return this.getValue(key, { complete: true });
   }
 
   async setString(key: string, value: string, ttl?: number): Promise<void> {

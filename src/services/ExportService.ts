@@ -118,10 +118,14 @@ export async function exportKeys(
 
         const key = keys[i];
         const keyValue = await keyService.getCompleteValue(key);
-        if (!keyValue) continue;
+        if (!keyValue) {
+          options.onProgress?.(i + 1, total);
+          continue;
+        }
 
         if (keyValue.type === 'unknown') {
           console.warn(`[BetterDB export] Skipping key "${key}": unsupported type for plain-text export. Use binary (RDB) format instead.`);
+          options.onProgress?.(i + 1, total);
           continue;
         }
 
@@ -154,7 +158,10 @@ export async function exportKeys(
           client.dumpBuffer(key),
         ]);
 
-        if (!dump) continue;
+        if (!dump) {
+          options.onProgress?.(i + 1, total);
+          continue;
+        }
 
         const line = JSON.stringify({
           key,
