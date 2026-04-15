@@ -6,6 +6,12 @@ import { arrayToObject } from '../utils/helpers';
 import { createError, ErrorCode } from '../utils/errors';
 import { bindValkeyCall } from './valkeyCall';
 
+function parseZsetScore(raw: string): number {
+  if (raw === 'inf' || raw === '+inf') return Infinity;
+  if (raw === '-inf') return -Infinity;
+  return parseFloat(raw);
+}
+
 export class KeyService {
   private scanLock: Promise<void> = Promise.resolve();
   private scanAbortController: AbortController | null = null;
@@ -178,7 +184,7 @@ export class KeyService {
             ]);
         const members: Array<{ member: string; score: number }> = [];
         for (let i = 0; i < raw.length; i += 2) {
-          members.push({ member: raw[i], score: parseFloat(raw[i + 1]) });
+          members.push({ member: raw[i], score: parseZsetScore(raw[i + 1]) });
         }
         const total = complete ? members.length : zsetCard;
         return {

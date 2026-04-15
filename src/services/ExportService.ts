@@ -25,6 +25,12 @@ function q(str: string): string {
   return `"${escapeValue(str)}"`;
 }
 
+function formatZsetScore(score: number): string {
+  if (score === Infinity) return '+inf';
+  if (score === -Infinity) return '-inf';
+  return String(score);
+}
+
 export function serializeKeyAsCommands(
   key: string,
   type: string,
@@ -64,7 +70,7 @@ export function serializeKeyAsCommands(
     case 'zset': {
       const members = value as Array<{ score: number; member: string }>;
       if (members.length === 0) return '';
-      const args = members.map(m => `${m.score} ${q(m.member)}`).join(' ');
+      const args = members.map(m => `${formatZsetScore(m.score)} ${q(m.member)}`).join(' ');
       cmd = `ZADD ${qk} ${args}\n`;
       break;
     }
