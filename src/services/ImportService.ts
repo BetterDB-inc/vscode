@@ -254,19 +254,23 @@ async function importBinary(
 
     // Check conflict
     if (options.conflictStrategy !== 'overwrite') {
+      let exists: number;
       try {
-        const exists = await client.exists(key);
-        if (exists) {
-          if (options.conflictStrategy === 'abort') {
-            result.errors.push(`Key "${key}" already exists — import aborted`);
-            break;
-          }
-          result.skipped++;
-          options.onProgress?.(result.imported + result.skipped + result.failed, total);
-          continue;
+        exists = await client.exists(key);
+      } catch (err) {
+        result.failed++;
+        result.errors.push(`EXISTS ${key}: ${err instanceof Error ? err.message : String(err)}`);
+        options.onProgress?.(result.imported + result.skipped + result.failed, total);
+        continue;
+      }
+      if (exists) {
+        if (options.conflictStrategy === 'abort') {
+          result.errors.push(`Key "${key}" already exists — import aborted`);
+          break;
         }
-      } catch {
-        // proceed
+        result.skipped++;
+        options.onProgress?.(result.imported + result.skipped + result.failed, total);
+        continue;
       }
     }
 
