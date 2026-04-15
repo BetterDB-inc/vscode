@@ -115,9 +115,15 @@ describe('SearchQueryService.fetchIndexSchema robustness', () => {
     expect(fields).toEqual([{ name: 'name', type: 'TEXT', attribute: 'name' }]);
   });
 
-  it('returns empty array on non-array reply', async () => {
+  it('throws on non-array reply', async () => {
     const client = { call: vi.fn().mockResolvedValue('OK') };
     const svc = new SearchQueryService();
-    expect(await svc.fetchIndexSchema(client, 'x')).toEqual([]);
+    await expect(svc.fetchIndexSchema(client, 'x')).rejects.toThrow(/non-array/);
+  });
+
+  it('throws when attributes value is not an array', async () => {
+    const client = { call: vi.fn().mockResolvedValue(['attributes', 'oops']) };
+    const svc = new SearchQueryService();
+    await expect(svc.fetchIndexSchema(client, 'x')).rejects.toThrow(/attributes value/);
   });
 });

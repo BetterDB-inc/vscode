@@ -32,11 +32,15 @@ export class SearchQueryService {
 }
 
 function parseAttributes(raw: unknown): IndexField[] {
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw)) {
+    throw new Error('FT.INFO returned a non-array response');
+  }
   for (let i = 0; i < raw.length - 1; i += 2) {
     if (toStr(raw[i]) === 'attributes') {
       const list = raw[i + 1];
-      if (!Array.isArray(list)) return [];
+      if (!Array.isArray(list)) {
+        throw new Error('FT.INFO attributes value is not an array');
+      }
       return list.map(parseRow).filter((f): f is IndexField => f !== null);
     }
   }

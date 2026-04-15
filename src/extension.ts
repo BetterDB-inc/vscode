@@ -20,7 +20,7 @@ import { COMMANDS } from './utils/constants';
 
 let connectionManager: ConnectionManager | undefined;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   connectionManager = new ConnectionManager(context);
   const cliBridge = new CliTerminalBridge();
 
@@ -43,13 +43,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const connectedIds = new Set<string>();
 
-  connectionManager.loadConnections().then((configs) => {
-    for (const config of configs) {
-      if (connectionManager.isConnected(config.id)) {
-        connectedIds.add(config.id);
-      }
+  const initialConfigs = await connectionManager.loadConnections();
+  for (const config of initialConfigs) {
+    if (connectionManager.isConnected(config.id)) {
+      connectedIds.add(config.id);
     }
-  });
+  }
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('betterdb-connections', connectionTreeProvider),
