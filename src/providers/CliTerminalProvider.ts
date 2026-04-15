@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/ConnectionManager';
+import { CliTerminalBridge } from '../services/CliTerminalBridge';
 import { CLI, STORAGE_KEYS } from '../utils/constants';
 
 const ESCAPE_CODES = {
@@ -56,9 +57,15 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
     private context: vscode.ExtensionContext,
     private connectionManager: ConnectionManager,
     private connectionId: string,
-    private connectionName: string
+    private connectionName: string,
+    private bridge: CliTerminalBridge,
+    private terminal?: vscode.Terminal
   ) {
     this.loadHistory();
+  }
+
+  setTerminal(terminal: vscode.Terminal): void {
+    this.terminal = terminal;
   }
 
   private loadHistory(): void {
@@ -81,9 +88,13 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
     this.write('Type commands or "help" for available commands.\r\n');
     this.write('Use Ctrl+C to cancel, Ctrl+D to exit.\r\n\r\n');
     this.prompt();
+    if (this.terminal) {
+      this.bridge.register(this.connectionId, this, this.terminal);
+    }
   }
 
   close(): void {
+    this.bridge.unregister(this.connectionId, this);
     this.saveHistory();
     this.writeEmitter.dispose();
     this.closeEmitter.dispose();

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from './services/ConnectionManager';
+import { CliTerminalBridge } from './services/CliTerminalBridge';
 import { ConnectionTreeProvider } from './providers/ConnectionTreeProvider';
 import { KeyTreeProvider } from './providers/KeyTreeProvider';
 import { SearchTreeProvider } from './providers/SearchTreeProvider';
@@ -20,6 +21,7 @@ let connectionManager: ConnectionManager | undefined;
 
 export function activate(context: vscode.ExtensionContext): void {
   connectionManager = new ConnectionManager(context);
+  const cliBridge = new CliTerminalBridge();
 
   const connectionTreeProvider = new ConnectionTreeProvider(connectionManager);
   const keyTreeProvider = new KeyTreeProvider(connectionManager);
@@ -85,9 +87,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
   registerConnectionCommands(context, connectionManager, keyTreeProvider, searchTreeProvider);
   registerKeyCommands(context, connectionManager, keyTreeProvider, keyEditorProvider, searchTreeProvider);
-  registerCliCommands(context, connectionManager);
+  registerCliCommands(context, connectionManager, cliBridge);
   registerExportCommands(context, connectionManager, keyTreeProvider);
-  registerSearchCommands(context, searchQueryProvider, searchTreeProvider);
+  registerSearchCommands(context, searchQueryProvider, searchTreeProvider, cliBridge);
 
   context.subscriptions.push(
     keyEditorProvider,

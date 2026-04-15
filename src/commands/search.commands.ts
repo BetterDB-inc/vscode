@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { CliTerminalBridge } from '../services/CliTerminalBridge';
 import { SearchQueryProvider } from '../providers/SearchQueryProvider';
 import { SearchIndexTreeItem, SearchTreeProvider } from '../providers/SearchTreeProvider';
 import { COMMANDS } from '../utils/constants';
@@ -6,7 +7,8 @@ import { COMMANDS } from '../utils/constants';
 export function registerSearchCommands(
   context: vscode.ExtensionContext,
   searchQueryProvider: SearchQueryProvider,
-  searchTreeProvider: SearchTreeProvider
+  searchTreeProvider: SearchTreeProvider,
+  _bridge: CliTerminalBridge
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
