@@ -190,14 +190,17 @@ export function registerExportCommands(
             cancellable: true,
           },
           async (progress, token) => {
+            let lastImported = 0;
             return importKeys(client, {
               filePath,
               conflictStrategy: strategy.value,
               onProgress: (imported, total) => {
                 if (total > 0) {
+                  const delta = Math.max(0, imported - lastImported);
+                  lastImported = imported;
                   progress.report({
                     message: `${imported} / ${total} keys`,
-                    increment: (1 / total) * 100,
+                    increment: (delta / total) * 100,
                   });
                 } else {
                   progress.report({ message: `${imported} keys processed` });
