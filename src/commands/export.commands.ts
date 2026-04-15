@@ -32,29 +32,19 @@ export function registerExportCommands(
       const pattern = keyTreeProvider.getFilter();
       const keyService = new KeyService(client);
 
-      const allKeys = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: 'Scanning keys...' },
-        async () => keyService.scanAllKeys(pattern, Infinity)
-      );
-
-      if (allKeys.length === 0) {
-        vscode.window.showInformationMessage(`No keys found matching "${pattern}"`);
-        return;
-      }
-
       const format = await vscode.window.showQuickPick(
         [
           { label: 'Plain Text Commands', description: 'Readable .txt file, executable via valkey-cli', value: 'text' as const },
           { label: 'Binary (RDB)', description: 'JSONL with DUMP payloads for exact key replication', value: 'binary' as const },
         ],
-        { placeHolder: `Export ${allKeys.length} keys matching "${pattern}"` }
+        { placeHolder: `Export keys matching "${pattern}"` }
       );
 
       if (!format) return;
 
       const limitInput = await vscode.window.showInputBox({
-        prompt: `Export all ${allKeys.length} keys, or enter a limit`,
-        value: String(allKeys.length),
+        prompt: `Maximum keys to export (matching "${pattern}")`,
+        value: '10000',
         validateInput: (v) => {
           const n = parseInt(v, 10);
           if (isNaN(n) || n < 1) return 'Must be a positive number';
@@ -64,7 +54,20 @@ export function registerExportCommands(
 
       if (limitInput === undefined) return;
       const parsedLimit = parseInt(limitInput, 10);
-      const keysToExport = parsedLimit < allKeys.length ? allKeys.slice(0, parsedLimit) : allKeys;
+
+      const keysToExport = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Scanning keys...', cancellable: true },
+        async (_progress, token) => {
+          return keyService.scanAllKeys(pattern, parsedLimit, () => {
+            if (token.isCancellationRequested) throw new Error('Scan cancelled');
+          });
+        }
+      );
+
+      if (keysToExport.length === 0) {
+        vscode.window.showInformationMessage(`No keys found matching "${pattern}"`);
+        return;
+      }
 
       const ext = format.value === 'text' ? 'txt' : 'rdb';
       const connName = connectionManager.getState(connectionId)?.config?.name ?? connectionId;

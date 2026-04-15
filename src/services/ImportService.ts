@@ -226,6 +226,7 @@ async function importBinary(
     } catch {
       result.failed++;
       result.errors.push(`Invalid JSON line: ${trimmed.slice(0, 50)}...`);
+      isFirstLine = false;
       continue;
     }
 
