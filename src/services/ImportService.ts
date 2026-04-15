@@ -57,10 +57,6 @@ export function parseCommand(line: string): { command: string; args: string[] } 
   if (tokens.length === 0) return null;
 
   const command = tokens[0].toUpperCase();
-  if (tokens[0].includes('.')) {
-    return { command: tokens[0].toUpperCase(), args: tokens.slice(1) };
-  }
-
   return { command, args: tokens.slice(1) };
 }
 

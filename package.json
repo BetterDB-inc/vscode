@@ -239,10 +239,6 @@
         {
           "command": "betterdb.editKey",
           "when": "false"
-        },
-        {
-          "command": "betterdb.exportKeys",
-          "when": "false"
         }
       ],
       "view/title": [

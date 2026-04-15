@@ -69,7 +69,9 @@ export function registerExportCommands(
       const ext = format.value === 'text' ? 'txt' : 'rdb';
       const connName = connectionManager.getState(connectionId)?.config?.name ?? connectionId;
       const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/[_-]+$/, '');
-      const fileName = `${sanitize(connName)}-${sanitize(pattern)}.${ext}`;
+      const sanitizedConn = sanitize(connName) || 'betterdb';
+      const sanitizedPattern = sanitize(pattern) || 'all';
+      const fileName = `${sanitizedConn}-${sanitizedPattern}.${ext}`;
       const lastDir = context.globalState.get<string>(LAST_EXPORT_DIR_KEY) ?? os.homedir();
       const uri = await vscode.window.showSaveDialog({
         defaultUri: vscode.Uri.file(path.join(lastDir, fileName)),
@@ -166,30 +168,38 @@ export function registerExportCommands(
 
       if (!strategy) return;
 
-      const importResult = await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: 'Importing keys...',
-          cancellable: true,
-        },
-        async (progress, token) => {
-          return importKeys(client, {
-            filePath,
-            conflictStrategy: strategy.value,
-            onProgress: (imported, total) => {
-              if (total > 0) {
-                progress.report({
-                  message: `${imported} / ${total} keys`,
-                  increment: (1 / total) * 100,
-                });
-              } else {
-                progress.report({ message: `${imported} keys processed` });
-              }
-            },
-            cancellationToken: token,
-          });
-        }
-      );
+      let importResult;
+      try {
+        importResult = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Importing keys...',
+            cancellable: true,
+          },
+          async (progress, token) => {
+            return importKeys(client, {
+              filePath,
+              conflictStrategy: strategy.value,
+              onProgress: (imported, total) => {
+                if (total > 0) {
+                  progress.report({
+                    message: `${imported} / ${total} keys`,
+                    increment: (1 / total) * 100,
+                  });
+                } else {
+                  progress.report({ message: `${imported} keys processed` });
+                }
+              },
+              cancellationToken: token,
+            });
+          }
+        );
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Import failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return;
+      }
 
       let summary = `Imported ${importResult.imported} keys`;
       if (importResult.skipped > 0) summary += `, ${importResult.skipped} skipped`;
