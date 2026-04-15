@@ -10,6 +10,8 @@ import { COMMANDS } from '../utils/constants';
 
 const LAST_EXPORT_DIR_KEY = 'betterdb.lastExportDir';
 
+let importOutputChannel: vscode.OutputChannel | undefined;
+
 export function registerExportCommands(
   context: vscode.ExtensionContext,
   connectionManager: ConnectionManager,
@@ -229,11 +231,15 @@ export function registerExportCommands(
 
       const action = await showFn(summary, ...buttons);
       if (action === 'Show Details') {
-        const channel = vscode.window.createOutputChannel('BetterDB Import');
-        channel.appendLine(summary);
-        channel.appendLine('');
-        for (const e of importResult.errors) channel.appendLine(`- ${e}`);
-        channel.show();
+        if (!importOutputChannel) {
+          importOutputChannel = vscode.window.createOutputChannel('BetterDB Import');
+          context.subscriptions.push(importOutputChannel);
+        }
+        importOutputChannel.clear();
+        importOutputChannel.appendLine(summary);
+        importOutputChannel.appendLine('');
+        for (const e of importResult.errors) importOutputChannel.appendLine(`- ${e}`);
+        importOutputChannel.show();
       } else if (action === 'Refresh Key Browser') {
         keyTreeProvider.refresh();
       }

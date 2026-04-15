@@ -136,6 +136,7 @@ async function importText(
       } catch (err) {
         result.errors.push(`EXPIRE ${key}: ${err instanceof Error ? err.message : String(err)}`);
       }
+      options.onProgress?.(result.imported + result.skipped + result.failed, total);
       continue;
     }
 
@@ -151,6 +152,7 @@ async function importText(
       } catch (err) {
         result.errors.push(`${command} ${key}: ${err instanceof Error ? err.message : String(err)}`);
       }
+      options.onProgress?.(result.imported + result.skipped + result.failed, total);
       continue;
     }
 
