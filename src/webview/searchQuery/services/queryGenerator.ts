@@ -57,6 +57,15 @@ function clauseFor(f: FieldFilter): string {
     }
     case 'TEXT': {
       const term = (f.value as TextValue).term.trim();
+      if (term.includes('*')) {
+        const isTrailingOnly = /^[^*\s]+\*$/.test(term);
+        if (isTrailingOnly) {
+          return `@${f.name}:${term}`;
+        }
+        const inner = term.replace(/'/g, "\\'");
+        const prefix = f.flags?.includes('WITHSUFFIXTRIE') ? "w'" : "'";
+        return `@${f.name}:${prefix}${inner}'`;
+      }
       const escaped = escapeText(term);
       return /\s/.test(term) ? `@${f.name}:"${escaped}"` : `@${f.name}:${escaped}`;
     }

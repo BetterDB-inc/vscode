@@ -33,6 +33,7 @@ export interface FieldFilter {
   name: string;
   type: FtFieldType;
   value: FieldValue;
+  flags?: string[];
 }
 
 export interface BuilderState {

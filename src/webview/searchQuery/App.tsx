@@ -23,7 +23,7 @@ const emptyValueFor = (t: FtFieldType): FieldFilter['value'] => {
 const buildInitialState = (indexName: string, schema: IndexField[]): BuilderState => ({
   indexName,
   command: 'FT.SEARCH',
-  fields: schema.map((f) => ({ name: f.name, type: f.type, value: emptyValueFor(f.type) })),
+  fields: schema.map((f) => ({ name: f.name, type: f.type, value: emptyValueFor(f.type), flags: f.flags })),
   modified: false,
 });
 

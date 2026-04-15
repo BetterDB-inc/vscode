@@ -140,6 +140,34 @@ describe('generateCommand', () => {
     expect(generateCommand(state)).toBe('FT.SEARCH idx:users *');
   });
 
+  it('TEXT trailing wildcard emits bare prefix term', () => {
+    const state = baseState({
+      fields: [{ name: 'name', type: 'TEXT', value: { term: 'Pou*' } }],
+    });
+    expect(generateCommand(state)).toBe('FT.SEARCH idx:users "@name:Pou*"');
+  });
+
+  it('TEXT leading wildcard without WITHSUFFIXTRIE uses single-quoted verbatim', () => {
+    const state = baseState({
+      fields: [{ name: 'name', type: 'TEXT', value: { term: '*Pouros' } }],
+    });
+    expect(generateCommand(state)).toBe("FT.SEARCH idx:users \"@name:'*Pouros'\"");
+  });
+
+  it('TEXT leading wildcard with WITHSUFFIXTRIE flag uses w\'…\' canonical syntax', () => {
+    const state = baseState({
+      fields: [{ name: 'name', type: 'TEXT', value: { term: '*Pouros' }, flags: ['WITHSUFFIXTRIE'] }],
+    });
+    expect(generateCommand(state)).toBe("FT.SEARCH idx:users \"@name:w'*Pouros'\"");
+  });
+
+  it('TEXT infix wildcard uses single-quoted verbatim', () => {
+    const state = baseState({
+      fields: [{ name: 'bio', type: 'TEXT', value: { term: '*engin*' } }],
+    });
+    expect(generateCommand(state)).toBe("FT.SEARCH idx:users \"@bio:'*engin*'\"");
+  });
+
   it('GEO with negative radius is skipped', () => {
     const state = baseState({
       fields: [{ name: 'loc', type: 'GEO', value: { lon: 0, lat: 0, radius: -5, unit: 'km' } }],
