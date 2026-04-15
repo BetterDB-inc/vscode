@@ -235,7 +235,8 @@ async function importBinary(
     // Parse header
     if (isFirstLine && parsed._header) {
       const header = parsed._header as { count?: number | string };
-      total = Number(header.count) || 0;
+      const parsedTotal = parseInt(String(header.count ?? ''), 10);
+      total = Number.isFinite(parsedTotal) ? parsedTotal : 0;
       isFirstLine = false;
       continue;
     }

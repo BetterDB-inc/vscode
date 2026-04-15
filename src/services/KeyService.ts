@@ -11,8 +11,11 @@ export class KeyService {
   private scanAbortController: AbortController | null = null;
   private ftIndexCache: { list: string[]; schemas: Map<string, FtIndexInfo>; expiresAt: number } | null = null;
   private readonly FT_CACHE_TTL_MS = 30_000;
+  private readonly call: (command: string, ...args: string[]) => Promise<unknown>;
 
-  constructor(private client: Valkey) {}
+  constructor(private client: Valkey) {
+    this.call = bindValkeyCall(client);
+  }
 
   async scanKeys(pattern: string = '*', count: number = 100): Promise<ScanResult> {
     const [cursor, keys] = await this.client.scan(0, 'MATCH', pattern, 'COUNT', count);
@@ -363,7 +366,7 @@ export class KeyService {
   }
 
   async executeCommand(command: string, ...args: string[]): Promise<unknown> {
-    return bindValkeyCall(this.client)(command, ...args);
+    return this.call(command, ...args);
   }
 
   async getJson(key: string, path: string = '.'): Promise<string | null> {

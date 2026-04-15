@@ -97,6 +97,7 @@ export function registerExportCommands(
       await context.globalState.update(LAST_EXPORT_DIR_KEY, path.dirname(uri.fsPath));
 
       let exportResult: { exported: number };
+      let cancelled = false;
       try {
         exportResult = await vscode.window.withProgress(
           {
@@ -105,7 +106,7 @@ export function registerExportCommands(
             cancellable: true,
           },
           async (progress, token) => {
-            return exportKeys(client, {
+            const result = await exportKeys(client, {
               keys: keysToExport,
               pattern,
               format: format.value,
@@ -118,6 +119,8 @@ export function registerExportCommands(
               },
               cancellationToken: token,
             });
+            cancelled = token.isCancellationRequested;
+            return result;
           }
         );
       } catch (err) {
@@ -127,10 +130,13 @@ export function registerExportCommands(
         return;
       }
 
-      const openAction = await vscode.window.showInformationMessage(
-        `Exported ${exportResult.exported} keys to ${uri.fsPath}`,
-        'Open File'
-      );
+      const showFn = cancelled
+        ? vscode.window.showWarningMessage
+        : vscode.window.showInformationMessage;
+      const summary = cancelled
+        ? `Export cancelled — ${exportResult.exported} of ${keysToExport.length} keys written to ${uri.fsPath}`
+        : `Exported ${exportResult.exported} keys to ${uri.fsPath}`;
+      const openAction = await showFn(summary, 'Open File');
       if (openAction === 'Open File') {
         vscode.commands.executeCommand('vscode.open', uri);
       }
