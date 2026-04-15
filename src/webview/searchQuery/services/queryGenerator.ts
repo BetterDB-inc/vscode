@@ -1,6 +1,6 @@
 import { BuilderState, FieldFilter, NumericValue, TagValue, TextValue, GeoValue } from '../../../shared/types';
 
-const TAG_SPECIAL = /([,.<>{}[\]"':;!@#$%^&*()\-+=~|/\\ ])/g;
+const TAG_SPECIAL = /([,.<>{}[\]"':;!@#$%^&*()\-+=~|/\\ ?])/g;
 const TEXT_SPECIAL = /([\\"])/g;
 
 const escapeTag = (v: string): string => v.replace(TAG_SPECIAL, '\\$1');

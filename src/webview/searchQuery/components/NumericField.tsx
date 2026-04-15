@@ -23,6 +23,7 @@ export function NumericField({ value, onChange }: Props) {
       <select
         className={styles.select}
         value={value.operator}
+        aria-label="Numeric operator"
         onChange={(e) => onChange({ ...value, operator: e.target.value as NumericOperator })}
       >
         {ops.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -30,6 +31,7 @@ export function NumericField({ value, onChange }: Props) {
       <input
         className={styles.input}
         type="number"
+        aria-label={value.operator === 'between' ? 'Lower bound' : 'Value'}
         value={value.value1 ?? ''}
         onChange={(e) => onChange({ ...value, value1: num(e.target.value) })}
       />
@@ -37,6 +39,7 @@ export function NumericField({ value, onChange }: Props) {
         <input
           className={styles.input}
           type="number"
+          aria-label="Upper bound"
           value={value.value2 ?? ''}
           onChange={(e) => onChange({ ...value, value2: num(e.target.value) })}
         />

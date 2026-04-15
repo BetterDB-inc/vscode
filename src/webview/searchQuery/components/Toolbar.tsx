@@ -37,7 +37,7 @@ export function Toolbar({ commandLine, disabled, onExecute, onSendToCli, ack }: 
       <button className={styles.btnSecondary} disabled={disabled || empty} onClick={onSendToCli}>
         Send to CLI
       </button>
-      <button className={styles.btnGhost} disabled={empty} onClick={() => navigator.clipboard.writeText(commandLine)}>
+      <button className={styles.btnGhost} disabled={empty} onClick={() => navigator.clipboard.writeText(commandLine).catch(() => undefined)}>
         Copy
       </button>
       {toast && <span className={styles.toast}>{toast}</span>}

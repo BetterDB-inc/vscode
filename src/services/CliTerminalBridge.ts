@@ -78,9 +78,11 @@ export class CliTerminalBridge {
     const existing = this.providers.get(connectionId);
     if (existing) return existing;
 
+    let pendingResolver: PendingResolver | undefined;
     const registered = new Promise<CliTerminalProvider>((resolve, reject) => {
+      pendingResolver = { resolve, reject };
       const list = this.pending.get(connectionId) ?? [];
-      list.push({ resolve, reject });
+      list.push(pendingResolver);
       this.pending.set(connectionId, list);
     });
     registered.catch(() => undefined);
@@ -98,17 +100,21 @@ export class CliTerminalBridge {
       await this.vscode.commands.executeCommand(COMMANDS.OPEN_CLI, connectionId);
       return await Promise.race([registered, timeout]);
     } catch (err) {
-      this.failPending(connectionId, err instanceof Error ? err : new Error(String(err)));
-      throw err;
+      throw err instanceof Error ? err : new Error(String(err));
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
+      if (pendingResolver) this.removePending(connectionId, pendingResolver);
     }
   }
 
-  private failPending(connectionId: string, err: Error): void {
+  private removePending(connectionId: string, target: PendingResolver): void {
     const list = this.pending.get(connectionId);
     if (!list) return;
-    this.pending.delete(connectionId);
-    list.forEach((cb) => cb.reject(err));
+    const filtered = list.filter((r) => r !== target);
+    if (filtered.length === 0) {
+      this.pending.delete(connectionId);
+    } else {
+      this.pending.set(connectionId, filtered);
+    }
   }
 }

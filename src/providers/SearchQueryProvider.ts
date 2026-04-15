@@ -186,9 +186,8 @@ export class SearchQueryProvider implements vscode.Disposable {
   }
 
   dispose(): void {
-    for (const [connectionId, panel] of [...this.panels]) {
+    for (const panel of [...this.panels.values()]) {
       panel.dispose();
-      this.cleanupPanel(connectionId);
     }
   }
 }

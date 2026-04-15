@@ -93,6 +93,7 @@ function FieldWidget({ field, tagOptions, onChange }: { field: FieldFilter; tagO
     case 'TEXT': return <TextField value={field.value as TextValue} onChange={onChange} />;
     case 'GEO': return <GeoField value={field.value as GeoValue} onChange={onChange} />;
     case 'VECTOR': return <span className={styles.unsupported}>VECTOR not supported in builder — type in preview</span>;
+    case 'GEOSHAPES': return <span className={styles.unsupported}>GEOSHAPES not supported in builder — type in preview</span>;
     default: return null;
   }
 }
