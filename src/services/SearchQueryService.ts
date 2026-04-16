@@ -2,6 +2,7 @@ import { IndexField, FtFieldType, ParsedSearchResponse, SearchResult, ParsedAggr
 
 interface RedisClient {
   call: (command: string, ...args: (string | number | Buffer)[]) => Promise<unknown>;
+  callBuffer?: (command: string, ...args: (string | number | Buffer)[]) => Promise<unknown>;
 }
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(['TEXT', 'TAG', 'NUMERIC', 'VECTOR', 'GEO', 'GEOSHAPES']);
@@ -28,6 +29,17 @@ export class SearchQueryService {
     const raw = await client.call('FT._LIST');
     if (!Array.isArray(raw)) return [];
     return raw.map(toStr);
+  }
+
+  async fetchVectorBytes(client: RedisClient, key: string, field: string): Promise<Buffer> {
+    const fn = client.callBuffer ?? client.call;
+    const raw = await fn.call(client, 'HGET', key, field);
+    if (raw === null || raw === undefined) {
+      throw new Error(`no vector bytes at ${key}.${field}`);
+    }
+    if (Buffer.isBuffer(raw)) return raw;
+    if (typeof raw === 'string') return Buffer.from(raw, 'binary');
+    throw new Error(`unexpected HGET response type for ${key}.${field}`);
   }
 }
 
@@ -142,25 +154,61 @@ function parseRow(row: unknown): IndexField | null {
   if (!Array.isArray(row)) return null;
   const map: Record<string, string> = {};
   const flags: string[] = [];
-  let i = 0;
-  while (i < row.length) {
-    const token = toStr(row[i]);
-    if (FLAG_TOKENS.has(token)) {
-      flags.push(token);
-      i += 1;
-    } else if (i + 1 < row.length) {
-      map[token] = toStr(row[i + 1]);
+
+  const consumeKv = (arr: unknown[]): void => {
+    let i = 0;
+    while (i < arr.length) {
+      const token = toStr(arr[i]);
+      if (FLAG_TOKENS.has(token)) {
+        flags.push(token);
+        i += 1;
+        continue;
+      }
+      if (i + 1 >= arr.length) { i += 1; continue; }
+      const val = arr[i + 1];
+      if (Array.isArray(val)) {
+        if (token.toLowerCase() === 'algorithm') {
+          for (let j = 0; j < val.length - 1; j += 2) {
+            if (toStr(val[j]).toLowerCase() === 'name') {
+              map.algorithm = toStr(val[j + 1]);
+              break;
+            }
+          }
+        } else {
+          consumeKv(val);
+        }
+      } else {
+        map[token] = toStr(val);
+      }
       i += 2;
-    } else {
-      i += 1;
     }
-  }
+  };
+
+  consumeKv(row);
+
   if (!map.attribute || !map.type) return null;
   if (!KNOWN_TYPES.has(map.type)) return null;
-  return {
+  const field: IndexField = {
     name: map.attribute,
     type: map.type as FtFieldType,
     attribute: map.identifier ?? map.attribute,
     flags: flags.length > 0 ? flags : undefined,
   };
+
+  if (field.type === 'VECTOR') {
+    const dim = Number(map.DIM ?? map.dim ?? map.dimensions ?? map.DIMENSIONS);
+    if (Number.isFinite(dim)) field.vectorDim = dim;
+    const algo = (map.algorithm ?? map.ALGORITHM ?? '').toUpperCase();
+    if (algo === 'HNSW' || algo === 'FLAT') field.vectorAlgorithm = algo;
+    const metric = (map.DISTANCE_METRIC ?? map.distance_metric ?? '').toUpperCase();
+    if (metric === 'COSINE' || metric === 'L2' || metric === 'IP') {
+      field.vectorDistanceMetric = metric;
+    }
+  }
+
+  return field;
+}
+
+export function parseInfoAttributes(raw: unknown): IndexField[] {
+  return parseAttributes(raw);
 }

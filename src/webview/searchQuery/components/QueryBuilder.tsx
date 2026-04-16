@@ -1,5 +1,5 @@
 import styles from '../styles.module.css';
-import { BuilderState, FieldFilter, IndexField, FtCommand, TagValue, NumericValue, TextValue, GeoValue } from '../../../shared/types';
+import { BuilderState, FieldFilter, IndexField, FtCommand, TagValue, NumericValue, TextValue, GeoValue, SearchCapabilities } from '../../../shared/types';
 import { TagField } from './TagField';
 import { NumericField } from './NumericField';
 import { TextField } from './TextField';
@@ -13,9 +13,11 @@ interface Props {
   onToggleCollapsed: () => void;
   onChange: (next: BuilderState) => void;
   onRequestTagValues: (field: string) => void;
+  caps?: SearchCapabilities;
+  knnClauseActive?: boolean;
 }
 
-export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleCollapsed, onChange, onRequestTagValues }: Props) {
+export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleCollapsed, onChange, onRequestTagValues, caps, knnClauseActive }: Props) {
   if (collapsed) {
     return (
       <button
@@ -76,6 +78,8 @@ export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleColl
             field={field}
             tagOptions={tagValues[field.name] ?? []}
             onChange={(value) => setField(idx, { value })}
+            caps={caps}
+            knnClauseActive={knnClauseActive}
           />
         </div>
       ))}
@@ -83,13 +87,24 @@ export function QueryBuilder({ state, schema, tagValues, collapsed, onToggleColl
   );
 }
 
-function FieldWidget({ field, tagOptions, onChange }: { field: FieldFilter; tagOptions: string[]; onChange: (v: FieldFilter['value']) => void }) {
+function FieldWidget({ field, tagOptions, onChange, caps, knnClauseActive }: { field: FieldFilter; tagOptions: string[]; onChange: (v: FieldFilter['value']) => void; caps?: SearchCapabilities; knnClauseActive?: boolean }) {
   switch (field.type) {
     case 'TAG': return <TagField value={field.value as TagValue} options={tagOptions} onChange={onChange} />;
     case 'NUMERIC': return <NumericField value={field.value as NumericValue} onChange={onChange} />;
-    case 'TEXT': return <TextField value={field.value as TextValue} onChange={onChange} />;
+    case 'TEXT':
+      if (caps && !caps.supportsText) {
+        return <span className={styles.unsupported}>TEXT not supported on this server ({caps.engineLabel})</span>;
+      }
+      return <TextField value={field.value as TextValue} onChange={onChange} />;
     case 'GEO': return <GeoField value={field.value as GeoValue} onChange={onChange} />;
-    case 'VECTOR': return <span className={styles.unsupported}>VECTOR not supported in builder — type in preview</span>;
+    case 'VECTOR':
+      if (knnClauseActive) {
+        return <span className={styles.unsupported}>VECTOR in use via KNN clause above</span>;
+      }
+      if (caps && !caps.supportsVector) {
+        return <span className={styles.unsupported}>VECTOR not supported on this server ({caps.engineLabel})</span>;
+      }
+      return <span className={styles.unsupported}>VECTOR not supported in builder — use KNN clause</span>;
     case 'GEOSHAPES': return <span className={styles.unsupported}>GEOSHAPES not supported in builder — type in preview</span>;
     default: return null;
   }

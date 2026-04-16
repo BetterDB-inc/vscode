@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('vscode', () => ({}));
 
-import { SearchQueryService, parseSearchResponse, parseAggregateResponse, parseInfoResponse } from '../SearchQueryService';
+import { SearchQueryService, parseSearchResponse, parseAggregateResponse, parseInfoResponse, parseInfoAttributes } from '../SearchQueryService';
 
 const ftInfoResponse = [
   'index_name', 'idx:users',
@@ -210,5 +210,91 @@ describe('parseInfoResponse', () => {
     const raw = ['attributes', [['identifier', 'name']]];
     const result = parseInfoResponse(raw);
     expect(result.attributes).toContain('identifier');
+  });
+});
+
+describe('SearchQueryService.fetchVectorBytes', () => {
+  it('returns a Buffer of expected length for the field', async () => {
+    const buf = Buffer.alloc(256, 1);
+    const client = { call: async () => buf };
+    const svc = new SearchQueryService();
+    const out = await svc.fetchVectorBytes(client, 'product:1', 'embedding');
+    expect(Buffer.isBuffer(out)).toBe(true);
+    expect(out.byteLength).toBe(256);
+  });
+
+  it('throws if HGET returns null', async () => {
+    const client = { call: async () => null };
+    const svc = new SearchQueryService();
+    await expect(svc.fetchVectorBytes(client, 'k', 'f')).rejects.toThrow(/no vector bytes/);
+  });
+
+  it('prefers callBuffer over call to preserve binary bytes', async () => {
+    const buf = Buffer.alloc(256, 0xff);
+    const call = vi.fn().mockResolvedValue('utf8-mangled');
+    const callBuffer = vi.fn().mockResolvedValue(buf);
+    const client = { call, callBuffer };
+    const svc = new SearchQueryService();
+    const out = await svc.fetchVectorBytes(client, 'product:1', 'embedding');
+    expect(out.byteLength).toBe(256);
+    expect(callBuffer).toHaveBeenCalledWith('HGET', 'product:1', 'embedding');
+    expect(call).not.toHaveBeenCalled();
+  });
+});
+
+describe('parseInfoAttributes — vector metadata', () => {
+  it('extracts DIM, algorithm, DISTANCE_METRIC for a VECTOR field', () => {
+    const raw = [
+      'attributes', [
+        ['identifier', 'embedding', 'attribute', 'embedding', 'type', 'VECTOR',
+         'algorithm', 'HNSW', 'DIM', '64', 'DISTANCE_METRIC', 'COSINE',
+         'data_type', 'FLOAT32', 'M', '16', 'EF_CONSTRUCTION', '200']
+      ]
+    ];
+    const fields = parseInfoAttributes(raw);
+    expect(fields).toHaveLength(1);
+    expect(fields[0]).toMatchObject({
+      name: 'embedding',
+      type: 'VECTOR',
+      vectorDim: 64,
+      vectorAlgorithm: 'HNSW',
+      vectorDistanceMetric: 'COSINE',
+    });
+  });
+
+  it('parses valkey-search nested VECTOR metadata (index wrapper + nested algorithm)', () => {
+    const raw = [
+      'attributes', [
+        ['identifier', 'embedding', 'attribute', 'embedding', 'type', 'VECTOR',
+         'index', [
+           'capacity', 10240,
+           'dimensions', 64,
+           'distance_metric', 'COSINE',
+           'size', '2000',
+           'data_type', 'FLOAT32',
+           'algorithm', ['name', 'FLAT', 'block_size', 1024],
+         ]],
+      ]
+    ];
+    const fields = parseInfoAttributes(raw);
+    expect(fields).toHaveLength(1);
+    expect(fields[0]).toMatchObject({
+      name: 'embedding',
+      type: 'VECTOR',
+      vectorDim: 64,
+      vectorAlgorithm: 'FLAT',
+      vectorDistanceMetric: 'COSINE',
+    });
+  });
+
+  it('parses non-vector fields without vector metadata', () => {
+    const raw = [
+      'attributes', [
+        ['identifier', 'category', 'attribute', 'category', 'type', 'TAG', 'SEPARATOR', ',']
+      ]
+    ];
+    const fields = parseInfoAttributes(raw);
+    expect(fields[0].type).toBe('TAG');
+    expect(fields[0].vectorDim).toBeUndefined();
   });
 });

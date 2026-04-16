@@ -7,9 +7,11 @@ interface Props {
   onExecute: () => void;
   onSendToCli: () => void;
   ack: { action: 'execute' | 'send'; ok: boolean; error?: string } | null;
+  knnEnabled?: boolean;
+  shellCommand?: string;
 }
 
-export function Toolbar({ commandLine, disabled, onExecute, onSendToCli, ack }: Props) {
+export function Toolbar({ commandLine, disabled, onExecute, onSendToCli, ack, knnEnabled, shellCommand }: Props) {
   const [toast, setToast] = useState<string | null>(null);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -27,17 +29,24 @@ export function Toolbar({ commandLine, disabled, onExecute, onSendToCli, ack }: 
     return () => clearTimeout(t);
   }, [ack]);
 
-  const empty = commandLine.trim().length === 0;
+  const executeEmpty = commandLine.trim().length === 0;
+  const copyText = knnEnabled ? (shellCommand ?? '') : commandLine;
+  const copyEmpty = copyText.trim().length === 0;
 
   return (
     <div className={styles.toolbar}>
-      <button className={styles.btnPrimary} disabled={disabled || empty} onClick={onExecute}>
+      <button className={styles.btnPrimary} disabled={disabled || executeEmpty} onClick={onExecute}>
         Execute
       </button>
-      <button className={styles.btnSecondary} disabled={disabled || empty} onClick={onSendToCli}>
+      <button
+        className={styles.btnSecondary}
+        disabled={disabled || executeEmpty || knnEnabled}
+        title={knnEnabled ? "Vector queries contain binary data and can't be sent to the interactive CLI. Use Copy to get a shell command you can run in your terminal." : undefined}
+        onClick={onSendToCli}
+      >
         Send to CLI
       </button>
-      <button className={styles.btnGhost} disabled={empty} onClick={() => navigator.clipboard.writeText(commandLine).catch(() => undefined)}>
+      <button className={styles.btnGhost} disabled={copyEmpty} onClick={() => navigator.clipboard.writeText(copyText).catch(() => undefined)}>
         Copy
       </button>
       {toast && <span className={styles.toast}>{toast}</span>}

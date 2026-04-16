@@ -248,7 +248,7 @@
         },
         {
           "command": "betterdb.openSearchQuery",
-          "when": "false"
+          "when": "betterdb.hasSearchModule"
         }
       ],
       "view/title": [
@@ -342,7 +342,8 @@
         },
         {
           "command": "betterdb.openSearchQuery",
-          "when": "viewItem == search-index"
+          "when": "viewItem == search-index",
+          "group": "inline"
         }
       ]
     }

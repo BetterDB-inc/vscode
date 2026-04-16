@@ -1,5 +1,6 @@
 import React from 'react';
 import { FtIndexInfo } from '../types';
+import { isVectorPlaceholder, parseVectorPlaceholder } from '../../../shared/vectorField';
 import styles from '../styles.module.css';
 
 interface HashField {
@@ -71,18 +72,30 @@ export const HashEditor: React.FC<HashEditorProps> = ({ fields, total, onChange,
               />
               {badgeText && <span className={styles.ftBadge}>{badgeText}</span>}
             </div>
-            <input
-              type="text"
-              className={styles.input}
-              value={item.value}
-              onChange={(e) => handleChange(index, 'value', e.target.value)}
-              placeholder="Value"
-            />
+            {isVectorPlaceholder(item.value) ? (
+              <input
+                type="text"
+                className={styles.input}
+                value={`⟨${parseVectorPlaceholder(item.value) ?? '?'} bytes · binary, read-only⟩`}
+                readOnly
+                title="Vector binary — preserved on save"
+                style={{ fontStyle: 'italic', opacity: 0.8 }}
+              />
+            ) : (
+              <input
+                type="text"
+                className={styles.input}
+                value={item.value}
+                onChange={(e) => handleChange(index, 'value', e.target.value)}
+                placeholder="Value"
+              />
+            )}
             <button
               type="button"
               className={styles.deleteBtn}
               onClick={() => handleRemove(index)}
               title="Remove field"
+              disabled={isVectorPlaceholder(item.value)}
             >
               ×
             </button>

@@ -7,6 +7,9 @@ export interface IndexField {
   type: FtFieldType;
   attribute?: string;
   flags?: string[];
+  vectorDim?: number;
+  vectorAlgorithm?: 'FLAT' | 'HNSW';
+  vectorDistanceMetric?: 'COSINE' | 'L2' | 'IP';
 }
 
 export interface TagValue { selected: string[]; }
@@ -61,6 +64,9 @@ export interface SearchResult {
 export interface ParsedSearchResponse {
   total: number;
   hits: SearchResult[];
+  isVectorQuery?: boolean;
+  scoreField?: string;
+  distanceMetric?: 'COSINE' | 'L2' | 'IP';
 }
 
 export interface ParsedAggregateResponse {
@@ -76,4 +82,26 @@ export interface FtIndexInfo {
   fields: FtFieldInfo[];
   indexOn: 'HASH' | 'JSON';
   prefixes: string[];
+}
+
+export interface SearchCapabilities {
+  hasSearch: boolean;
+  supportsVector: boolean;
+  supportsText: boolean;
+  engineLabel: string;
+}
+
+export type VectorSource =
+  | { kind: 'key'; key: string; bytes: string }
+  | { kind: 'paste'; bytes: string };
+
+export interface KnnClauseState {
+  enabled: boolean;
+  field: string;
+  k: number;
+  asName: string;
+  efRuntime?: number;
+  source?: VectorSource;
+  pasteRaw?: string;
+  pasteError?: string;
 }

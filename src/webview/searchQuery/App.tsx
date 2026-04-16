@@ -6,8 +6,19 @@ import { QueryBuilder } from './components/QueryBuilder';
 import { CommandPreview } from './components/CommandPreview';
 import { Toolbar } from './components/Toolbar';
 import { ResultsTable } from './components/ResultsTable';
+import { KnnClause } from './components/KnnClause';
 import { generateCommand } from './services/queryGenerator';
-import { BuilderState, IndexField, FieldFilter, FtFieldType, SearchResult } from '../../shared/types';
+import { parseVectorInput } from './utils/parseVector';
+import { formatShellCommand } from './utils/formatShellCommand';
+import {
+  BuilderState,
+  IndexField,
+  FieldFilter,
+  FtFieldType,
+  SearchResult,
+  SearchCapabilities,
+  KnnClauseState,
+} from '../../shared/types';
 import { ExtToWebviewMessage, WebviewToExtMessage } from './types';
 
 const emptyValueFor = (t: FtFieldType): FieldFilter['value'] => {
@@ -41,7 +52,22 @@ export function App() {
   const [connectionLost, setConnectionLost] = useState(false);
   const [error, setError] = useState<ErrorInfo | null>(null);
   const [ack, setAck] = useState<{ action: 'execute' | 'send'; ok: boolean; error?: string } | null>(null);
-  const [results, setResults] = useState<{ total: number; hits: SearchResult[]; tookMs: number; error: string | null } | null>(null);
+  const [results, setResults] = useState<{
+    total: number;
+    hits: SearchResult[];
+    tookMs: number;
+    error: string | null;
+    isVectorQuery?: boolean;
+    scoreField?: string;
+    distanceMetric?: 'COSINE' | 'L2' | 'IP';
+  } | null>(null);
+  const [caps, setCaps] = useState<SearchCapabilities>({
+    hasSearch: false, supportsVector: false, supportsText: false, engineLabel: '',
+  });
+  const [connection, setConnection] = useState<{ host: string; port: number } | null>(null);
+  const [knn, setKnn] = useState<KnnClauseState>({
+    enabled: false, field: '', k: 10, asName: '__embedding_score',
+  });
 
   const post = useCallback((msg: WebviewToExtMessage) => vscode.postMessage(msg), [vscode]);
 
@@ -51,6 +77,8 @@ export function App() {
       switch (msg.command) {
         case 'init':
           setIndexes(msg.indexes);
+          if (msg.caps) setCaps(msg.caps);
+          if (msg.connection) setConnection(msg.connection);
           if (msg.selectedIndex) setSelected(msg.selectedIndex);
           break;
         case 'indexSchema':
@@ -67,7 +95,15 @@ export function App() {
           break;
         case 'queryResult':
           if (msg.ok) {
-            setResults({ total: msg.total, hits: msg.hits, tookMs: msg.tookMs, error: null });
+            setResults({
+              total: msg.total,
+              hits: msg.hits,
+              tookMs: msg.tookMs,
+              error: null,
+              isVectorQuery: msg.isVectorQuery,
+              scoreField: msg.scoreField,
+              distanceMetric: msg.distanceMetric,
+            });
           } else {
             setResults({ total: 0, hits: [], tookMs: 0, error: msg.error });
           }
@@ -77,6 +113,13 @@ export function App() {
           break;
         case 'selectIndex':
           setSelected(msg.indexName);
+          break;
+        case 'vectorKeyPicked':
+          setKnn((prev) => ({
+            ...prev,
+            source: { kind: 'key', key: msg.key, bytes: msg.bytes },
+            pasteError: undefined,
+          }));
           break;
         case 'error':
           setError({ context: msg.context, message: msg.message });
@@ -92,22 +135,56 @@ export function App() {
     if (selected) post({ command: 'fetchSchema', index: selected });
   }, [selected, post]);
 
+  const vectorField = schema.find((f) => f.type === 'VECTOR');
+  const knnClauseVisible = caps.supportsVector && !!vectorField;
+
   useEffect(() => {
-    if (state) setPreview(generateCommand(state));
-  }, [state]);
+    if (knnClauseVisible && vectorField && (!knn.enabled || knn.field !== vectorField.name)) {
+      setKnn((prev) => ({ ...prev, enabled: true, field: vectorField.name }));
+    } else if (!knnClauseVisible && knn.enabled) {
+      setKnn((prev) => ({ ...prev, enabled: false, source: undefined, pasteError: undefined }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knnClauseVisible, vectorField?.name]);
+
+  useEffect(() => {
+    if (!knn.pasteRaw || !vectorField?.vectorDim) return;
+    const handle = setTimeout(() => {
+      const parsed = parseVectorInput(knn.pasteRaw!, vectorField.vectorDim!);
+      if (parsed.ok) {
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(parsed.bytes)));
+        setKnn((prev) => ({ ...prev, source: { kind: 'paste', bytes: b64 }, pasteError: undefined }));
+      } else {
+        setKnn((prev) => ({ ...prev, source: undefined, pasteError: parsed.error }));
+      }
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [knn.pasteRaw, vectorField?.vectorDim]);
+
+  useEffect(() => {
+    if (state) setPreview(generateCommand(state, knn.enabled ? knn : undefined));
+  }, [state, knn]);
+
+  const buildExecute = useCallback((): WebviewToExtMessage => ({
+    command: 'executeQuery',
+    commandLine: preview,
+    vectorBytes: knn.enabled ? knn.source?.bytes : undefined,
+    scoreField: knn.enabled ? knn.asName : undefined,
+    distanceMetric: knn.enabled ? vectorField?.vectorDistanceMetric : undefined,
+  }), [preview, knn, vectorField]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         if (!connectionLost && preview.trim().length > 0) {
-          post({ command: 'executeQuery', commandLine: preview });
+          post(buildExecute());
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [preview, connectionLost, post]);
+  }, [preview, connectionLost, post, buildExecute]);
 
   const onPreviewChange = (next: string, manual: boolean) => {
     setPreview(next);
@@ -117,6 +194,18 @@ export function App() {
   const onRequestTagValues = (field: string) => {
     if (selected) post({ command: 'fetchTagValues', index: selected, field });
   };
+
+  const shellCommand = (() => {
+    if (!knn.enabled || !knn.source?.bytes || !connection || !selected) return undefined;
+    const match = preview.match(/^[A-Z._]+\s+\S+\s+(?:"((?:\\.|[^"\\])*)"|(\*))$/);
+    const queryString = match ? (match[1] ?? match[2] ?? '*') : '*';
+    return formatShellCommand({
+      connection,
+      indexName: selected,
+      queryString,
+      vectorBase64: knn.source.bytes,
+    });
+  })();
 
   return (
     <div className={styles.app}>
@@ -130,6 +219,11 @@ export function App() {
 
       <div className={styles.header}>
         <IndexSelector indexes={indexes} selected={selected} onChange={setSelected} />
+        {caps.hasSearch && caps.engineLabel && (
+          <span className={styles.engineBadge} title="Search engine detected via capability probe">
+            {caps.engineLabel}
+          </span>
+        )}
       </div>
 
       {state && schema.length > 0 && (
@@ -147,14 +241,30 @@ export function App() {
         <div className={styles.emptyHint}>Index has no schema fields.</div>
       )}
 
-      <CommandPreview value={preview} onChange={onPreviewChange} disabled={connectionLost} />
+      {knnClauseVisible && vectorField && (
+        <KnnClause
+          state={knn}
+          vectorField={vectorField}
+          onChange={setKnn}
+          onPickKey={() => selected && post({ command: 'pickVectorKey', index: selected })}
+        />
+      )}
+
+      <CommandPreview
+        value={preview}
+        onChange={onPreviewChange}
+        disabled={connectionLost}
+        isVectorPreview={knn.enabled}
+      />
 
       <Toolbar
         commandLine={preview}
         disabled={connectionLost || preview.trim().length === 0}
-        onExecute={() => post({ command: 'executeQuery', commandLine: preview })}
+        onExecute={() => post(buildExecute())}
         onSendToCli={() => post({ command: 'sendToCli', commandLine: preview })}
         ack={ack}
+        knnEnabled={knn.enabled}
+        shellCommand={shellCommand}
       />
 
       {results && (
@@ -164,6 +274,10 @@ export function App() {
           tookMs={results.tookMs}
           error={results.error}
           onOpenKey={(key) => post({ command: 'openKey', key })}
+          isVectorQuery={results.isVectorQuery}
+          scoreField={results.scoreField}
+          distanceMetric={results.distanceMetric}
+          vectorFieldName={vectorField?.name}
         />
       )}
     </div>

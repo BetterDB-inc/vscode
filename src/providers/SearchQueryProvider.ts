@@ -3,9 +3,27 @@ import { ConnectionManager } from '../services/ConnectionManager';
 import { SearchQueryService, parseSearchResponse, tokenizeCommand } from '../services/SearchQueryService';
 import { CliTerminalBridge } from '../services/CliTerminalBridge';
 import { WebviewToExtMessage } from '../webview/searchQuery/types';
+import { IndexField } from '../shared/types';
 
 const NONCE_LENGTH = 32;
 const NONCE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+function extractPrefix(rawFtInfo: unknown): string | undefined {
+  if (!Array.isArray(rawFtInfo)) return undefined;
+  const toStr = (v: unknown): string => typeof v === 'string' ? v : Buffer.isBuffer(v) ? v.toString() : String(v);
+  for (let i = 0; i < rawFtInfo.length - 1; i += 2) {
+    if (toStr(rawFtInfo[i]) !== 'index_definition') continue;
+    const def = rawFtInfo[i + 1];
+    if (!Array.isArray(def)) return undefined;
+    for (let j = 0; j < def.length - 1; j += 2) {
+      if (toStr(def[j]) === 'prefixes') {
+        const list = def[j + 1];
+        if (Array.isArray(list) && list.length > 0) return toStr(list[0]);
+      }
+    }
+  }
+  return undefined;
+}
 
 export class SearchQueryProvider implements vscode.Disposable {
   private panels: Map<string, vscode.WebviewPanel> = new Map();
@@ -91,7 +109,16 @@ export class SearchQueryProvider implements vscode.Disposable {
         case 'fetchIndexes':
           try {
             const indexes = await this.service.listIndexes(activeClient);
-            webview.postMessage({ command: 'init', indexes, selectedIndex: this.selectedIndexes.get(connectionId) ?? null });
+            const caps = this.connectionManager.getCapabilities(connectionId);
+            const cfg = this.connectionManager.getState(connectionId)?.config;
+            const connection = cfg ? { host: cfg.host, port: cfg.port } : undefined;
+            webview.postMessage({
+              command: 'init',
+              indexes,
+              selectedIndex: this.selectedIndexes.get(connectionId) ?? null,
+              caps,
+              connection,
+            });
           } catch (err) { sendError('fetchIndexes', err); }
           return;
         case 'fetchSchema':
@@ -105,7 +132,14 @@ export class SearchQueryProvider implements vscode.Disposable {
           try {
             const values = await this.service.fetchTagValues(activeClient, msg.index, msg.field);
             webview.postMessage({ command: 'tagValues', field: msg.field, values });
-          } catch (err) { sendError(`fetchTagValues:${msg.field}`, err); }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (/unknown command/i.test(message)) {
+              webview.postMessage({ command: 'tagValues', field: msg.field, values: [] });
+            } else {
+              sendError(`fetchTagValues:${msg.field}`, err);
+            }
+          }
           return;
         case 'executeInCli':
           await sendCliAck('execute', () => this.bridge.sendAndExecute(connectionId, msg.commandLine));
@@ -121,13 +155,22 @@ export class SearchQueryProvider implements vscode.Disposable {
               throw new Error('Empty command');
             }
             const [cmd, ...args] = tokens;
-            const raw = await activeClient.call(cmd, ...args);
+            const callArgs: (string | Buffer)[] = [...args];
+            const isVectorQuery = Boolean(msg.vectorBytes);
+            if (isVectorQuery) {
+              const buf = Buffer.from(msg.vectorBytes!, 'base64');
+              callArgs.push('DIALECT', '2', 'PARAMS', '2', 'vec', buf);
+            }
+            const raw = await activeClient.call(cmd, ...callArgs);
             const parsed = parseSearchResponse(raw);
             webview.postMessage({
               command: 'queryResult', ok: true,
               total: parsed.total, hits: parsed.hits,
               tookMs: Date.now() - started,
               commandLine: msg.commandLine,
+              isVectorQuery,
+              scoreField: msg.scoreField,
+              distanceMetric: msg.distanceMetric,
             });
           } catch (err) {
             webview.postMessage({
@@ -136,6 +179,32 @@ export class SearchQueryProvider implements vscode.Disposable {
               commandLine: msg.commandLine,
             });
           }
+          return;
+        }
+        case 'pickVectorKey': {
+          try {
+            const schema = await this.service.fetchIndexSchema(activeClient, msg.index);
+            const vectorField = schema.find((f) => f.type === 'VECTOR');
+            if (!vectorField || !vectorField.vectorDim) {
+              vscode.window.showErrorMessage(`Index ${msg.index} has no vector field`);
+              return;
+            }
+            const info = await activeClient.call('FT.INFO', msg.index);
+            const prefix = extractPrefix(info);
+            if (!prefix) {
+              vscode.window.showErrorMessage(`Cannot determine key prefix for ${msg.index}`);
+              return;
+            }
+            const picked = await this.pickKeyWithVector(activeClient, prefix, vectorField);
+            if (picked) {
+              webview.postMessage({
+                command: 'vectorKeyPicked',
+                key: picked.key,
+                bytes: picked.bytes.toString('base64'),
+                byteLength: picked.bytes.byteLength,
+              });
+            }
+          } catch (err) { sendError(`pickVectorKey:${msg.index}`, err); }
           return;
         }
         case 'openKey':
@@ -211,6 +280,50 @@ export class SearchQueryProvider implements vscode.Disposable {
     }
     this.panels.delete(connectionId);
     this.selectedIndexes.delete(connectionId);
+  }
+
+  private async pickKeyWithVector(
+    client: { call: (cmd: string, ...args: (string | number | Buffer)[]) => Promise<unknown> },
+    prefix: string,
+    vectorField: IndexField,
+  ): Promise<{ key: string; bytes: Buffer } | undefined> {
+    const items = await this.scanKeys(client, `${prefix}*`, 500);
+    if (items.length === 0) {
+      vscode.window.showWarningMessage(`No keys match ${prefix}*`);
+      return undefined;
+    }
+    const picked = await vscode.window.showQuickPick(items, {
+      matchOnDescription: true,
+      title: `Pick a key with vector field @${vectorField.name}`,
+    });
+    if (!picked) return undefined;
+    const bytes = await this.service.fetchVectorBytes(client, picked.label, vectorField.name);
+    const expected = (vectorField.vectorDim ?? 0) * 4;
+    if (bytes.byteLength !== expected) {
+      vscode.window.showErrorMessage(
+        `Key ${picked.label} has ${bytes.byteLength} bytes; index expects ${expected}.`
+      );
+      return undefined;
+    }
+    return { key: picked.label, bytes };
+  }
+
+  private async scanKeys(
+    client: { call: (cmd: string, ...args: (string | number | Buffer)[]) => Promise<unknown> },
+    match: string,
+    cap: number,
+  ): Promise<vscode.QuickPickItem[]> {
+    const out: vscode.QuickPickItem[] = [];
+    let cursor = '0';
+    do {
+      const res = await client.call('SCAN', cursor, 'MATCH', match, 'COUNT', '100') as [string, string[]];
+      cursor = res[0];
+      for (const k of res[1]) {
+        out.push({ label: k });
+        if (out.length >= cap) return out;
+      }
+    } while (cursor !== '0');
+    return out;
   }
 
   dispose(): void {

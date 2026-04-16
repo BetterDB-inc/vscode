@@ -6,13 +6,32 @@ const TEXT_SPECIAL = /([\\"])/g;
 const escapeTag = (v: string): string => v.replace(TAG_SPECIAL, '\\$1');
 const escapeText = (v: string): string => v.replace(TEXT_SPECIAL, '\\$1');
 
-export function generateCommand(state: BuilderState): string {
+export interface KnnOptions {
+  enabled: boolean;
+  field: string;
+  k: number;
+  asName: string;
+  efRuntime?: number;
+}
+
+export function generateCommand(state: BuilderState, knn?: KnnOptions): string {
   if (state.command === 'FT.INFO') {
     return `FT.INFO ${state.indexName}`;
   }
   const clauses = state.fields
     .filter((f) => hasValue(f))
     .map((f) => clauseFor(f));
+
+  if (knn?.enabled && knn.field && knn.k > 0) {
+    const filterForHybrid = clauses.length === 0 ? '*' : `(${clauses.join(' ')})`;
+    let knnClause = `${filterForHybrid}=>[KNN ${knn.k} @${knn.field} $vec AS ${knn.asName}]`;
+    if (typeof knn.efRuntime === 'number' && knn.efRuntime > 0) {
+      knnClause += ` EF_RUNTIME ${knn.efRuntime}`;
+    }
+    const body = knnClause.replace(/"/g, '\\"');
+    return `${state.command} ${state.indexName} "${body}"`;
+  }
+
   if (clauses.length === 0) {
     return `${state.command} ${state.indexName} *`;
   }
