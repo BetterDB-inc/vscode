@@ -20,7 +20,8 @@ function formatScore(raw: string | undefined): string {
 
 function formatVectorCell(raw: string | undefined): string {
   if (raw === undefined || raw === null) return '';
-  return `⟨${raw.length} bytes⟩`;
+  const byteLength = new TextEncoder().encode(raw).byteLength;
+  return `⟨${byteLength} bytes⟩`;
 }
 
 export function ResultsTable({ total, hits, tookMs, error, onOpenKey, isVectorQuery, scoreField, distanceMetric, vectorFieldName }: Props) {

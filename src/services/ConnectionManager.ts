@@ -181,7 +181,8 @@ export class ConnectionManager {
     }
 
     this.capsByConnection.delete(configId);
-    this.setSearchCapsContext(undefined);
+    const remainingCaps = this.capsByConnection.values().next().value as SearchCapabilities | undefined;
+    this.setSearchCapsContext(remainingCaps);
 
     const state = this.states.get(configId);
     if (state) {

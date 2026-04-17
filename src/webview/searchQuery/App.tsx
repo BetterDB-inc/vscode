@@ -152,7 +152,10 @@ export function App() {
     const handle = setTimeout(() => {
       const parsed = parseVectorInput(knn.pasteRaw!, vectorField.vectorDim!);
       if (parsed.ok) {
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(parsed.bytes)));
+        const bytes = new Uint8Array(parsed.bytes);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        const b64 = btoa(bin);
         setKnn((prev) => ({ ...prev, source: { kind: 'paste', bytes: b64 }, pasteError: undefined }));
       } else {
         setKnn((prev) => ({ ...prev, source: undefined, pasteError: parsed.error }));

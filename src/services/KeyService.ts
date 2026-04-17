@@ -251,9 +251,13 @@ export class KeyService {
   }
 
   async setHash(key: string, fields: Record<string, string | Buffer>): Promise<void> {
+    const ttl = await this.client.ttl(key);
     await this.client.del(key);
     if (Object.keys(fields).length > 0) {
       await this.client.hset(key, fields as Record<string, string>);
+    }
+    if (ttl > 0) {
+      await this.client.expire(key, ttl);
     }
   }
 
