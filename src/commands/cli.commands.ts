@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/ConnectionManager';
+import { CliTerminalBridge } from '../services/CliTerminalBridge';
 import { CliTerminalProvider } from '../providers/CliTerminalProvider';
 import { ConnectionTreeItem } from '../providers/ConnectionTreeProvider';
 
 export function registerCliCommands(
   context: vscode.ExtensionContext,
-  connectionManager: ConnectionManager
+  connectionManager: ConnectionManager,
+  bridge: CliTerminalBridge
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('betterdb.openCli', async (item?: ConnectionTreeItem | string) => {
@@ -50,13 +52,13 @@ export function registerCliCommands(
         return;
       }
 
-      const pty = new CliTerminalProvider(context, connectionManager, connectionId, connectionName);
+      const pty = new CliTerminalProvider(context, connectionManager, connectionId, connectionName, bridge);
       const terminal = vscode.window.createTerminal({
         name: `BetterDB: ${connectionName}`,
         pty,
         iconPath: new vscode.ThemeIcon('terminal'),
       });
-
+      pty.setTerminal(terminal);
       terminal.show();
     })
   );

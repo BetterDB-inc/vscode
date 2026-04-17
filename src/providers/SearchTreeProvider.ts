@@ -13,11 +13,14 @@ const FIELD_ICONS: Record<string, string> = {
   GEOSHAPES: 'globe',
 };
 
-type SearchTreeItem = FtIndexItem | FtFieldItem;
+type SearchTreeItem = SearchIndexTreeItem | FtFieldItem;
 
-class FtIndexItem extends vscode.TreeItem {
-  constructor(public readonly info: FtIndexInfo) {
+export class SearchIndexTreeItem extends vscode.TreeItem {
+  readonly indexName: string;
+
+  constructor(public readonly info: FtIndexInfo, public readonly connectionId: string) {
     super(info.name, vscode.TreeItemCollapsibleState.Collapsed);
+    this.indexName = info.name;
     this.iconPath = new vscode.ThemeIcon('list-tree');
     this.description = `${info.numDocs} doc${info.numDocs !== 1 ? 's' : ''} \u00b7 ${info.indexingState}`;
     this.contextValue = 'search-index';
@@ -62,6 +65,10 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
     }
   }
 
+  getActiveConnectionId(): string | null {
+    return this.activeConnectionId;
+  }
+
   clear(): void {
     this.activeConnectionId = null;
     this.keyService = null;
@@ -95,13 +102,13 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
           empty.iconPath = new vscode.ThemeIcon('info');
           return [empty as SearchTreeItem];
         }
-        const items: FtIndexItem[] = [];
+        const items: SearchIndexTreeItem[] = [];
         for (const name of indexes) {
           try {
             const info = await this.keyService.getSearchIndexInfo(name);
-            items.push(new FtIndexItem(info));
+            items.push(new SearchIndexTreeItem(info, this.activeConnectionId!));
           } catch {
-            const errorItem = new FtIndexItem({
+            const errorItem = new SearchIndexTreeItem({
               name,
               numDocs: 0,
               indexingState: 'indexing',
@@ -109,7 +116,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
               fields: [],
               indexOn: 'HASH',
               prefixes: [],
-            });
+            }, this.activeConnectionId!);
             errorItem.description = 'failed to load';
             items.push(errorItem);
           }
@@ -124,7 +131,7 @@ export class SearchTreeProvider implements vscode.TreeDataProvider<SearchTreeIte
       }
     }
 
-    if (element instanceof FtIndexItem) {
+    if (element instanceof SearchIndexTreeItem) {
       return element.info.fields.map((field) => new FtFieldItem(field));
     }
 

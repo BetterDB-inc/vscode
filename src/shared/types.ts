@@ -1,5 +1,51 @@
 export type KeyType = 'string' | 'hash' | 'list' | 'set' | 'zset' | 'stream' | 'json' | 'unknown';
 
+export type FtCommand = 'FT.SEARCH' | 'FT.AGGREGATE' | 'FT.INFO';
+
+export interface IndexField {
+  name: string;
+  type: FtFieldType;
+  attribute?: string;
+  flags?: string[];
+  vectorDim?: number;
+  vectorAlgorithm?: 'FLAT' | 'HNSW';
+  vectorDistanceMetric?: 'COSINE' | 'L2' | 'IP';
+}
+
+export interface TagValue { selected: string[]; }
+
+export type NumericOperator = 'between' | 'eq' | 'gt' | 'gte' | 'lt' | 'lte';
+export interface NumericValue {
+  operator: NumericOperator;
+  value1: number | null;
+  value2: number | null;
+}
+
+export interface TextValue { term: string; }
+
+export interface GeoValue {
+  lon: number | null;
+  lat: number | null;
+  radius: number | null;
+  unit: 'km' | 'm' | 'mi' | 'ft';
+}
+
+export type FieldValue = TagValue | NumericValue | TextValue | GeoValue;
+
+export interface FieldFilter {
+  name: string;
+  type: FtFieldType;
+  value: FieldValue;
+  flags?: string[];
+}
+
+export interface BuilderState {
+  indexName: string;
+  command: FtCommand;
+  fields: FieldFilter[];
+  modified: boolean;
+}
+
 export type FtFieldType = 'TEXT' | 'TAG' | 'NUMERIC' | 'VECTOR' | 'GEO' | 'GEOSHAPES';
 
 export interface FtFieldInfo {
@@ -10,6 +56,24 @@ export interface FtFieldInfo {
   vectorDistanceMetric?: string;
 }
 
+export interface SearchResult {
+  key: string;
+  fields: Record<string, string>;
+}
+
+export interface ParsedSearchResponse {
+  total: number;
+  hits: SearchResult[];
+  isVectorQuery?: boolean;
+  scoreField?: string;
+  distanceMetric?: 'COSINE' | 'L2' | 'IP';
+}
+
+export interface ParsedAggregateResponse {
+  total: number;
+  rows: Record<string, string>[];
+}
+
 export interface FtIndexInfo {
   name: string;
   numDocs: number;
@@ -18,4 +82,26 @@ export interface FtIndexInfo {
   fields: FtFieldInfo[];
   indexOn: 'HASH' | 'JSON';
   prefixes: string[];
+}
+
+export interface SearchCapabilities {
+  hasSearch: boolean;
+  supportsVector: boolean;
+  supportsText: boolean;
+  engineLabel: string;
+}
+
+export type VectorSource =
+  | { kind: 'key'; key: string; bytes: string }
+  | { kind: 'paste'; bytes: string };
+
+export interface KnnClauseState {
+  enabled: boolean;
+  field: string;
+  k: number;
+  asName: string;
+  efRuntime?: number;
+  source?: VectorSource;
+  pasteRaw?: string;
+  pasteError?: string;
 }
