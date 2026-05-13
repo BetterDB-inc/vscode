@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { KeyService } from '../services/KeyService';
 import { KeyValue } from '../models/key.model';
 import { FtIndexInfo } from '../shared/types';
+import { isVectorPlaceholder, makeVectorPlaceholder } from '../shared/vectorField';
 import { showError } from '../utils/errors';
 
 interface WebviewMessage {
@@ -17,6 +18,7 @@ const NONCE_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01
 export class KeyEditorProvider implements vscode.Disposable {
   private panels: Map<string, vscode.WebviewPanel> = new Map();
   private disposables: Map<string, vscode.Disposable[]> = new Map();
+  private schemas: Map<string, FtIndexInfo | null> = new Map();
 
   constructor(
     private context: vscode.ExtensionContext,
@@ -48,6 +50,7 @@ export class KeyEditorProvider implements vscode.Disposable {
     } catch {
       // Search module unavailable — proceed without schema
     }
+    this.schemas.set(panelKey, ftSchema);
 
     const panel = vscode.window.createWebviewPanel(
       'betterdb.keyEditor',
@@ -68,7 +71,7 @@ export class KeyEditorProvider implements vscode.Disposable {
 
     const messageHandler = panel.webview.onDidReceiveMessage(
       async (message: WebviewMessage) => {
-        await this.handleMessage(keyService, key, message, panel);
+        await this.handleMessage(keyService, panelKey, key, message, panel);
       }
     );
     panelDisposables.push(messageHandler);
@@ -100,6 +103,7 @@ export class KeyEditorProvider implements vscode.Disposable {
 
   private async handleMessage(
     keyService: KeyService,
+    panelKey: string,
     key: string,
     message: WebviewMessage,
     panel: vscode.WebviewPanel
@@ -107,10 +111,13 @@ export class KeyEditorProvider implements vscode.Disposable {
     try {
       switch (message.command) {
         case 'save': {
-          await this.handleSave(keyService, key, message);
+          await this.handleSave(keyService, panelKey, key, message);
           const updatedValue = await keyService.getValue(key);
           if (updatedValue) {
-            panel.webview.postMessage({ command: 'update', data: this.toWebviewData(updatedValue) });
+            panel.webview.postMessage({
+              command: 'update',
+              data: this.toWebviewData(updatedValue, this.schemas.get(panelKey) ?? null),
+            });
           }
           vscode.window.showInformationMessage(`Key "${key}" saved successfully`);
           break;
@@ -136,7 +143,10 @@ export class KeyEditorProvider implements vscode.Disposable {
             await keyService.setTTL(key, message.ttl);
             const refreshed = await keyService.getValue(key);
             if (refreshed) {
-              panel.webview.postMessage({ command: 'update', data: this.toWebviewData(refreshed) });
+              panel.webview.postMessage({
+                command: 'update',
+                data: this.toWebviewData(refreshed, this.schemas.get(panelKey) ?? null),
+              });
             }
             vscode.window.showInformationMessage(
               message.ttl > 0 ? `TTL set to ${message.ttl} seconds` : 'TTL removed'
@@ -149,6 +159,7 @@ export class KeyEditorProvider implements vscode.Disposable {
           if (newValue) {
             let refreshedSchema: FtIndexInfo | null = null;
             try { refreshedSchema = await keyService.getIndexForKey(key); } catch { /* ignore */ }
+            this.schemas.set(panelKey, refreshedSchema);
             panel.webview.postMessage({ command: 'update', data: this.toWebviewData(newValue, refreshedSchema) });
           } else {
             vscode.window.showWarningMessage('Key no longer exists');
@@ -168,7 +179,10 @@ export class KeyEditorProvider implements vscode.Disposable {
             await keyService.setTTL(key, ttl);
             const refreshed = await keyService.getValue(key);
             if (refreshed) {
-              panel.webview.postMessage({ command: 'update', data: this.toWebviewData(refreshed) });
+              panel.webview.postMessage({
+                command: 'update',
+                data: this.toWebviewData(refreshed, this.schemas.get(panelKey) ?? null),
+              });
             }
             vscode.window.showInformationMessage(
               ttl > 0 ? `TTL set to ${ttl} seconds` : 'TTL removed'
@@ -184,6 +198,7 @@ export class KeyEditorProvider implements vscode.Disposable {
 
   private async handleSave(
     keyService: KeyService,
+    panelKey: string,
     key: string,
     message: WebviewMessage
   ): Promise<void> {
@@ -194,11 +209,21 @@ export class KeyEditorProvider implements vscode.Disposable {
 
       case 'hash': {
         const hashFields = message.value as Array<{ field: string; value: string }>;
-        const hashObj: Record<string, string> = {};
+        const schema = this.schemas.get(panelKey) ?? null;
+        const vectorFieldNames = new Set(
+          (schema?.fields ?? []).filter((f) => f.type === 'VECTOR').map((f) => f.name)
+        );
+        const hashObj: Record<string, string | Buffer> = {};
         for (const { field, value } of hashFields) {
-          if (field.trim()) {
-            hashObj[field] = value;
+          if (!field.trim()) continue;
+          if (vectorFieldNames.has(field) || isVectorPlaceholder(value)) {
+            const bytes = await keyService.getHashFieldBytes(key, field);
+            if (bytes) {
+              hashObj[field] = bytes;
+              continue;
+            }
           }
+          hashObj[field] = value;
         }
         await keyService.setHash(key, hashObj);
         break;
@@ -232,12 +257,27 @@ export class KeyEditorProvider implements vscode.Disposable {
   }
 
   private toWebviewData(keyValue: KeyValue, ftSchema?: FtIndexInfo | null) {
+    const maskedValue = this.maskVectorFields(keyValue.value, ftSchema ?? null);
     return {
       key: keyValue.key,
-      type: keyValue.value.type,
+      type: maskedValue.type,
       ttl: keyValue.ttl,
-      value: keyValue.value,
+      value: maskedValue,
       ftSchema: ftSchema ?? null,
+    };
+  }
+
+  private maskVectorFields(value: KeyValue['value'], ftSchema: FtIndexInfo | null): KeyValue['value'] {
+    if (value.type !== 'hash' || !ftSchema) return value;
+    const vectorFields = new Set(ftSchema.fields.filter((f) => f.type === 'VECTOR').map((f) => f.name));
+    if (vectorFields.size === 0) return value;
+    return {
+      ...value,
+      fields: value.fields.map((f) =>
+        vectorFields.has(f.field)
+          ? { field: f.field, value: makeVectorPlaceholder(Buffer.byteLength(f.value, 'binary')) }
+          : f
+      ),
     };
   }
 
@@ -301,6 +341,7 @@ export class KeyEditorProvider implements vscode.Disposable {
       this.disposables.delete(panelKey);
     }
     this.panels.delete(panelKey);
+    this.schemas.delete(panelKey);
   }
 
   dispose(): void {

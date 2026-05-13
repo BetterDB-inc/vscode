@@ -1,23 +1,28 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from './services/ConnectionManager';
+import { CliTerminalBridge } from './services/CliTerminalBridge';
 import { ConnectionTreeProvider } from './providers/ConnectionTreeProvider';
 import { KeyTreeProvider } from './providers/KeyTreeProvider';
 import { SearchTreeProvider } from './providers/SearchTreeProvider';
 import { KeyEditorProvider } from './providers/KeyEditorProvider';
+import { SearchQueryProvider } from './providers/SearchQueryProvider';
 import { BrandingTreeProvider } from './providers/BrandingTreeProvider';
 import { StatsViewProvider } from './providers/StatsViewProvider';
+import { SearchQueryService } from './services/SearchQueryService';
 import {
   registerConnectionCommands,
   registerKeyCommands,
   registerCliCommands,
   registerExportCommands,
+  registerSearchCommands,
 } from './commands';
 import { COMMANDS } from './utils/constants';
 
 let connectionManager: ConnectionManager | undefined;
 
-export function activate(context: vscode.ExtensionContext): void {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
   connectionManager = new ConnectionManager(context);
+  const cliBridge = new CliTerminalBridge();
 
   const connectionTreeProvider = new ConnectionTreeProvider(connectionManager);
   const keyTreeProvider = new KeyTreeProvider(connectionManager);
@@ -25,6 +30,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const keyEditorProvider = new KeyEditorProvider(context, () => {
     keyTreeProvider.refresh();
   });
+  const searchQueryService = new SearchQueryService();
+  const searchQueryProvider = new SearchQueryProvider(context, connectionManager, searchQueryService, cliBridge);
   const statsViewProvider = new StatsViewProvider(context.extensionUri);
 
   const updateStatsClient = async () => {
@@ -33,6 +40,15 @@ export function activate(context: vscode.ExtensionContext): void {
     const client = connectedConfig ? connectionManager.getClient(connectedConfig.id) : null;
     statsViewProvider.setClient(client ?? null);
   };
+
+  const connectedIds = new Set<string>();
+
+  const initialConfigs = await connectionManager.loadConnections();
+  for (const config of initialConfigs) {
+    if (connectionManager.isConnected(config.id)) {
+      connectedIds.add(config.id);
+    }
+  }
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('betterdb-connections', connectionTreeProvider),
@@ -52,18 +68,40 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('betterdb.openRepo', () => {
       vscode.env.openExternal(vscode.Uri.parse('https://github.com/betterdb-inc/vscode'));
     }),
-    connectionManager.onDidChangeConnections(() => {
+    connectionManager.onDidChangeConnections(async () => {
       updateStatsClient();
+      const configs = await connectionManager.loadConnections();
+      const currentIds = new Set(configs.map((c) => c.id));
+      for (const id of [...connectedIds]) {
+        if (!currentIds.has(id)) {
+          searchQueryProvider.notifyConnectionRemoved(id);
+          connectedIds.delete(id);
+        }
+      }
+      for (const config of configs) {
+        const wasConnected = connectedIds.has(config.id);
+        const nowConnected = connectionManager.isConnected(config.id);
+        if (wasConnected && !nowConnected) {
+          searchQueryProvider.notifyConnectionLost(config.id);
+        }
+        if (nowConnected) {
+          connectedIds.add(config.id);
+        } else {
+          connectedIds.delete(config.id);
+        }
+      }
     })
   );
 
   registerConnectionCommands(context, connectionManager, keyTreeProvider, searchTreeProvider);
   registerKeyCommands(context, connectionManager, keyTreeProvider, keyEditorProvider, searchTreeProvider);
-  registerCliCommands(context, connectionManager);
+  registerCliCommands(context, connectionManager, cliBridge);
   registerExportCommands(context, connectionManager, keyTreeProvider);
+  registerSearchCommands(context, searchQueryProvider, searchTreeProvider);
 
   context.subscriptions.push(
     keyEditorProvider,
+    searchQueryProvider,
     {
       dispose: () => {
         statsViewProvider.dispose();

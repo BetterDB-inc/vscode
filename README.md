@@ -31,14 +31,14 @@ Scan and filter keys by pattern. See key types and TTL at a glance. Supports wil
 
 View and edit Valkey data types with type-specific editors:
 
-| Type | View | Edit | Delete |
-|------|:----:|:----:|:------:|
-| String | ✓ | ✓ | ✓ |
-| Hash | ✓ | ✓ | ✓ |
-| List | ✓ | ✓ | ✓ |
-| Set | ✓ | ✓ | ✓ |
-| Sorted Set | ✓ | ✓ | ✓ |
-| Stream | ✓ | — | ✓ |
+| Type       | View | Edit | Delete |
+| ---------- | :--: | :--: | :----: |
+| String     |  ✓   |  ✓   |   ✓    |
+| Hash       |  ✓   |  ✓   |   ✓    |
+| List       |  ✓   |  ✓   |   ✓    |
+| Set        |  ✓   |  ✓   |   ✓    |
+| Sorted Set |  ✓   |  ✓   |   ✓    |
+| Stream     |  ✓   |  —   |   ✓    |
 
 ![Key Editor](resources/screenshots/editor.png)
 
@@ -61,6 +61,21 @@ Browse Valkey Search (FT) indexes directly in the sidebar. See index schemas, fi
 - Automatically detects whether the Search module is available
 
 ![Search Indexes](resources/screenshots/indexes.png)
+
+### Search Query Runner
+
+Run `FT.SEARCH` queries against your indexes from a dedicated panel. Build filters visually or write raw query strings — the command preview updates as you type so you can copy it to `valkey-cli` or a script.
+
+- **Visual filter builder** for TAG, NUMERIC, and TEXT fields — toggles, ranges, and multi-select tag pickers (tag values auto-load when supported)
+- **Vector KNN search** with inline K selector and vector input as a JSON array (`[0.12, -0.4, …]`) or base64-encoded FLOAT32 bytes — hybrid queries combine the visual filter with `=>[KNN K @field $vec]` automatically
+- **Results table** renders hash and JSON documents with type-aware formatting; KNN results include a score column and are sorted nearest-first
+- **Click-through** from any result row opens the key editor. Vector fields appear as read-only `⟨N bytes · binary⟩` placeholders so edits to other fields preserve embeddings byte-for-byte
+- **Capability-aware** — the panel auto-detects which field types your server supports (valkey-search vs. RediSearch) and hides controls that would return errors
+
+Launch from the Search Indexes view toolbar (search icon), right-click any index, or run **BetterDB: Open Search Query Runner** from the Command Palette.
+![Query Search Builder](resources/screenshots/query-search-builder.png)
+
+See the [Search Query Runner guide](docs/search-query-runner.md) for a walkthrough, KNN input formats, the engine capability matrix, and troubleshooting.
 
 ### Import & Export
 
@@ -112,15 +127,15 @@ Download the `.vsix` file from [GitHub Releases](https://github.com/betterdb-inc
 
 ## Connection Settings
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| Name | Display name for the connection | — |
-| Host | Server hostname or IP | `localhost` |
-| Port | Server port | `6379` |
-| Username | ACL username (optional) | — |
-| Password | Authentication password (optional) | — |
-| Database | Database index | `0` |
-| TLS | Enable TLS/SSL encryption | `false` |
+| Setting  | Description                        | Default     |
+| -------- | ---------------------------------- | ----------- |
+| Name     | Display name for the connection    | —           |
+| Host     | Server hostname or IP              | `localhost` |
+| Port     | Server port                        | `6379`      |
+| Username | ACL username (optional)            | —           |
+| Password | Authentication password (optional) | —           |
+| Database | Database index                     | `0`         |
+| TLS      | Enable TLS/SSL encryption          | `false`     |
 
 ### SSH Tunnel
 
@@ -134,14 +149,14 @@ Connect to remote Valkey/Redis instances through an SSH tunnel — no VS Code Re
 
 When adding or editing a connection, choose **Yes** at the "Connect via SSH tunnel?" prompt and enter your SSH server details. The extension opens an SSH connection, creates a local TCP tunnel, and routes all Valkey traffic through it.
 
-| Setting | Description | Default |
-|---------|-------------|---------|
-| SSH Enabled | Enable SSH tunnel for this connection | `false` |
-| SSH Host | SSH server hostname or IP | — |
-| SSH Port | SSH server port | `22` |
-| SSH Username | SSH login username | — |
-| SSH Auth Method | Password or Private Key | — |
-| SSH Private Key | Path to private key file | — |
+| Setting         | Description                           | Default |
+| --------------- | ------------------------------------- | ------- |
+| SSH Enabled     | Enable SSH tunnel for this connection | `false` |
+| SSH Host        | SSH server hostname or IP             | —       |
+| SSH Port        | SSH server port                       | `22`    |
+| SSH Username    | SSH login username                    | —       |
+| SSH Auth Method | Password or Private Key               | —       |
+| SSH Private Key | Path to private key file              | —       |
 
 ---
 
@@ -149,18 +164,19 @@ When adding or editing a connection, choose **Yes** at the "Connect via SSH tunn
 
 Access commands via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-| Command | Description |
-|---------|-------------|
-| `BetterDB: Add Connection` | Add a new database connection |
-| `BetterDB: Add Key` | Create a new key |
-| `BetterDB: Filter Keys` | Filter keys by pattern |
-| `BetterDB: Open CLI` | Open the integrated CLI |
-| `BetterDB: Export Keys` | Export keys to text or binary file |
-| `BetterDB: Import Keys` | Import keys from a text or binary file |
-| `BetterDB: Refresh` | Refresh the key list |
-| `BetterDB: Refresh Stats` | Refresh server stats |
-| `BetterDB: Open BetterDB Website` | Visit betterdb.com |
-| `BetterDB: Contribute on GitHub` | Open the GitHub repository |
+| Command                              | Description                            |
+| ------------------------------------ | -------------------------------------- |
+| `BetterDB: Add Connection`           | Add a new database connection          |
+| `BetterDB: Add Key`                  | Create a new key                       |
+| `BetterDB: Filter Keys`              | Filter keys by pattern                 |
+| `BetterDB: Open CLI`                 | Open the integrated CLI                |
+| `BetterDB: Open Search Query Runner` | Run FT.SEARCH queries against indexes  |
+| `BetterDB: Export Keys`              | Export keys to text or binary file     |
+| `BetterDB: Import Keys`              | Import keys from a text or binary file |
+| `BetterDB: Refresh`                  | Refresh the key list                   |
+| `BetterDB: Refresh Stats`            | Refresh server stats                   |
+| `BetterDB: Open BetterDB Website`    | Visit betterdb.com                     |
+| `BetterDB: Contribute on GitHub`     | Open the GitHub repository             |
 
 ![Command Palette](resources/screenshots/command-pallette.png)
 

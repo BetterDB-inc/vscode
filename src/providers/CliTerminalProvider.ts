@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ConnectionManager } from '../services/ConnectionManager';
+import { CliTerminalBridge } from '../services/CliTerminalBridge';
 import { CLI, STORAGE_KEYS } from '../utils/constants';
 
 const ESCAPE_CODES = {
@@ -51,14 +52,40 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
   private cursorPosition = 0;
   private escapeBuffer = '';
   private isExecuting = false;
+  private currentExecution: Promise<void> | null = null;
+  private isOpen = false;
+  private isRegistered = false;
 
   constructor(
     private context: vscode.ExtensionContext,
     private connectionManager: ConnectionManager,
     private connectionId: string,
-    private connectionName: string
+    private connectionName: string,
+    private bridge: CliTerminalBridge,
+    private terminal?: vscode.Terminal
   ) {
     this.loadHistory();
+  }
+
+  setTerminal(terminal: vscode.Terminal): void {
+    this.terminal = terminal;
+    this.tryRegister();
+  }
+
+  private tryRegister(): void {
+    if (this.isRegistered || !this.isOpen || !this.terminal) return;
+    this.bridge.register(this.connectionId, this, this.terminal);
+    this.isRegistered = true;
+  }
+
+  async waitIdle(): Promise<void> {
+    while (this.currentExecution) {
+      const pending = this.currentExecution;
+      try { await pending; } catch { /* ignore — already surfaced to terminal */ }
+      if (this.currentExecution === pending) {
+        this.currentExecution = null;
+      }
+    }
   }
 
   private loadHistory(): void {
@@ -81,9 +108,14 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
     this.write('Type commands or "help" for available commands.\r\n');
     this.write('Use Ctrl+C to cancel, Ctrl+D to exit.\r\n\r\n');
     this.prompt();
+    this.isOpen = true;
+    this.tryRegister();
   }
 
   close(): void {
+    this.bridge.unregister(this.connectionId, this);
+    this.isRegistered = false;
+    this.isOpen = false;
     this.saveHistory();
     this.writeEmitter.dispose();
     this.closeEmitter.dispose();
@@ -122,7 +154,7 @@ export class CliTerminalProvider implements vscode.Pseudoterminal {
     if (char === '\r' || char === '\n') {
       if (!this.isExecuting) {
         this.write('\r\n');
-        this.executeCommand(this.buffer.trim());
+        this.currentExecution = this.executeCommand(this.buffer.trim());
         this.buffer = '';
         this.cursorPosition = 0;
       }

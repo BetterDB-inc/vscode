@@ -17,6 +17,8 @@ export const DEFAULT_CONNECTION = {
 export const SCAN_COUNT = 500;
 export const DISPLAY_LIMIT = 100;
 
+export const BETTERDB_PROBE_PREFIX = '__betterdb_probe_';
+
 export const CLI = {
   MAX_HISTORY_SIZE: 250,
   HISTORY_DISPLAY_LIMIT: 20,
@@ -55,4 +57,5 @@ export const COMMANDS = {
   EDIT_KEY: 'betterdb.editKey',
   EXPORT_KEYS: 'betterdb.exportKeys',
   IMPORT_KEYS: 'betterdb.importKeys',
+  OPEN_SEARCH_QUERY: 'betterdb.openSearchQuery',
 } as const;
